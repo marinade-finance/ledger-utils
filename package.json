@@ -2,12 +2,13 @@
     "license": "ISC",
     "scripts": {
         "compile": "tsc --project tsconfig.build.json",
+        "_copy-readme": "cp packages/ledger-utils/*.md build/packages/ledger-utils",
         "build": "pnpm compile",
         "test": "pnpm jest -- \"$FILE\"",
         "lint": "gts lint",
         "lint:fix": "gts fix",
         "lint:clean": "gts clean",
-        "publish": "pnpm build && pnpm publish build/packages/ledger-utils"
+        "publish": "pnpm lint && pnpm build && pnpm publish build/packages/ledger-utils"
     },
     "devDependencies": {
         "@jest/globals": "^29.5.0",
@@ -23,12 +24,8 @@
     },
     "pnpm": {
         "peerDependencyRules": {
-            "ignoreMissing": [
-                "react-native"
-            ],
             "allowedVersions": {
-                "jest": "29",
-                "@coral-xyz/anchor": "0.29"
+                "jest": "29"
             }
         }
     }

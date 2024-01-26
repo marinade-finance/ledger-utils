@@ -14,6 +14,7 @@ import {
  * Parsing provided argument as a ledger url.
  * It considers it ledger url only when the argument starts with 'usb://ledger',
  * otherwise null is returned.
+ * This Wallet interface is compatible with Anchor TS SDK.
  */
 export async function parseLedgerWallet(
   pathOrUrl: string,

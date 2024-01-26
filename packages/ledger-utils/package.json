@@ -1,7 +1,7 @@
 {
     "name": "@marinade.finance/ledger-utils",
-    "version": "2.2.0",
-    "description": "Utility functions for interacting with the Ledger from CLI",
+    "version": "3.0.0",
+    "description": "Utility to interact with Solana Ledger from CLI",
     "repository": {
       "type": "git",
       "url": "git@github.com:marinade-finance/marinade-ts-cli.git"
@@ -26,17 +26,17 @@
       "src"
     ],
     "devDependencies": {
-        "@ledgerhq/errors": "^6.13.1",
-        "@ledgerhq/hw-app-solana": "^7.0.12",
-        "@ledgerhq/hw-transport-node-hid-noevents": "^6.27.18",
+        "@ledgerhq/errors": "^6.16.1",
+        "@ledgerhq/hw-app-solana": "^7.1.2",
+        "@ledgerhq/hw-transport-node-hid-noevents": "^6.29.2",
         "@solana/web3.js": "^1.78.5",
-        "@marinade.finance/ts-common": "^2.2.0"
+        "@marinade.finance/ts-common": "^2.1.4"
     },
     "peerDependencies": {
-      "@ledgerhq/errors": "^6.14.0",
-      "@ledgerhq/hw-app-solana": "^7.0.13",
-      "@ledgerhq/hw-transport-node-hid-noevents": "^6.27.19",
+      "@ledgerhq/errors": "^6.16.1",
+      "@ledgerhq/hw-app-solana": "^7.1.2",
+      "@ledgerhq/hw-transport-node-hid-noevents": "^6.29.2",
       "@solana/web3.js": "^1.78.5",
-      "@marinade.finance/ts-common": "^2.2.0"
+      "@marinade.finance/ts-common": "^2.1.4"
     }
   }

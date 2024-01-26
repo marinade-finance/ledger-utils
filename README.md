@@ -1,4 +1,5 @@
-# SPL Governance CLI
+# Solana Ledger utilities
 
-TypeScript CLI for [SPL Governance](https://github.com/solana-labs/solana-program-library/blob/master/governance/README.md)
-based on [Oyster SDK, @solana/spl-governance](https://github.com/solana-labs/oyster/tree/main/packages/governance-sdk).
+TypeScript ledger utilities for Solana, mainly targeted to be used in CLI nodejs applications.
+
+For more see [ledger-utils/README](packages/ledger-utils/README.md).
