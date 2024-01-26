@@ -1,6 +1,6 @@
 {
     "name": "@marinade.finance/ledger-utils",
-    "version": "3.0.0",
+    "version": "3.0.1-beta",
     "description": "Utility to interact with Solana Ledger from CLI",
     "repository": {
       "type": "git",
