@@ -76,8 +76,15 @@ export class LedgerWallet implements Wallet {
     } else {
       message = tx.message
     }
+    logInfo(
+      this.logger,
+      `Waiting for your approval on Ledger hardware wallet ${
+        this.derivedPath
+      } [[${this.publicKey.toBase58()}]]`
+    )
     const signature = await this.signMessage(message)
     tx.addSignature(this.publicKey, signature)
+    logInfo(this.logger, '✅ Approved')
     return tx
   }
 
