@@ -9,6 +9,7 @@ import {
   logError,
   logDebug,
 } from '@marinade.finance/ts-common'
+import { CLI_TREZOR_URL_PREFIX } from './trezor'
 
 /**
  * Parsing provided argument as a ledger url.
@@ -84,5 +85,21 @@ export async function parseLedgerWallet(
     }
   }
 
+  return null
+}
+
+
+export async function parseTrezorWallet(
+  pathOrUrl: string,
+  logger?: LoggerPlaceholder
+): Promise<Wallet | null> {
+  pathOrUrl = pathOrUrl.trim()
+
+  if (pathOrUrl.startsWith(CLI_TREZOR_URL_PREFIX)) {
+    try {
+    } catch (e) {
+      throw e
+    }
+  }
   return null
 }

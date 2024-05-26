@@ -8,6 +8,7 @@
         "lint": "gts lint",
         "lint:fix": "gts fix",
         "lint:clean": "gts clean",
+        "cli": "ts-node ./packages/cli-test/src/",
         "publish:ledger": "pnpm lint && pnpm build && pnpm publish build/packages/ledger-utils"
     },
     "devDependencies": {

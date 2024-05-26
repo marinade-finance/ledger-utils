@@ -1,0 +1,41 @@
+{
+  "name": "@marinade.finance/ledger-cli-test",
+  "version": "0.0.1",
+  "description": "CLI for testing hw wallet",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:marinade-finance/ledger-utils.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "cli-test": "./src/index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "main": "src/index",
+  "dependencies": {
+    "@marinade.finance/ledger-utils": "workspace:^3.0.2-beta",
+    "@solana/web3.js": "^1.91.1",
+    "@marinade.finance/cli-common": "^2.4.3",
+    "@marinade.finance/ts-common": "^2.4.3",
+    "bn.js": "^5.2.1",
+    "jsbi": "^4.3.0",
+    "commander": "^11.1.0",
+    "pino": "^8.17.2",
+    "pino-pretty": "^10.3.1",
+    "yaml": "^2.3.4"
+  },
+  "devDependencies": {
+    "@marinade.finance/jest-utils": "^2.4.3"
+  }
+}
