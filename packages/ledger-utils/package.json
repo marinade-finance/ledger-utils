@@ -26,17 +26,17 @@
       "src"
     ],
     "devDependencies": {
-        "@ledgerhq/errors": "^6.16.1",
-        "@ledgerhq/hw-app-solana": "^7.1.2",
-        "@ledgerhq/hw-transport-node-hid-noevents": "^6.29.2",
-        "@solana/web3.js": "^1.78.5",
-        "@marinade.finance/ts-common": "^2.1.4"
+        "@ledgerhq/errors": "^6.16.4",
+        "@ledgerhq/hw-app-solana": "^7.1.6",
+        "@ledgerhq/hw-transport-node-hid-noevents": "^6.29.6",
+        "@solana/web3.js": "^1.91.8",
+        "@marinade.finance/ts-common": "^2.4.3"
     },
     "peerDependencies": {
       "@ledgerhq/errors": "^6.16.1",
       "@ledgerhq/hw-app-solana": "^7.1.2",
       "@ledgerhq/hw-transport-node-hid-noevents": "^6.29.2",
-      "@solana/web3.js": "^1.78.5",
-      "@marinade.finance/ts-common": "^2.1.4"
+      "@solana/web3.js": "^1.91.8",
+      "@marinade.finance/ts-common": "^2.4.3"
     }
   }
