@@ -3,11 +3,11 @@ import TrezorConnect from '@trezor/connect';
 
 export const CLI_TREZOR_URL_PREFIX = 'usb://trezor'
 
-export async function parseTrezorWallet(
+export async function getPublicKey(
   pathOrUrl: string,
   logger?: LoggerPlaceholder
 ) {
-    TrezorConnect.init({
+    await TrezorConnect.init({
         lazyLoad: true, // this param will prevent iframe injection until TrezorConnect.method will be called
         manifest: {
             email: 'chalda@marinade.finance',

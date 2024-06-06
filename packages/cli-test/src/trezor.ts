@@ -1,9 +1,11 @@
 import { Command } from 'commander'
 
 
-  export function installCommand(program: Command) {
-    program
-      .command('test')
+  export function installTrezor(program: Command) {
+    const trezorCommand = program
+      .command('trezor');
+
+    trezorCommand  
       .action(
         async (
           something?: string

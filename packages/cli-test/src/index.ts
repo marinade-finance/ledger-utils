@@ -9,7 +9,7 @@ import {
   DEFAULT_KEYPAIR_PATH,
 } from '@marinade.finance/cli-common'
 import { Logger } from 'pino'
-import { installCommand } from './command'
+import { installCommand } from './trezor'
 
 export const logger: Logger = configureLogger()
 const program = new Command()
