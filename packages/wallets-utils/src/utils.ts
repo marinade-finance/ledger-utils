@@ -30,14 +30,19 @@ export function generateAllCombinations(
 /**
  *
  * Parsing the derived path string to check heuristic depth and wide.
+ * The method may be provided with path depth and wide that is expected
+ * to be searched by default but the purpose of the method is to check
+ * what is derived path provided by caller and based on the path
+ * providing back what is the scope of possible heuristic search.
  *
+ * Method expects the path starts with '<m>/purpose/cointype/...
  * When the derived path is e.g., 44'/501'/0/0/5 then
  * the wide will be 3, depth will be max of the provided numbers as it's 5.
  */
 export function getHeuristicDepthAndWide(
   derivedPath: string,
-  defaultDepth = 10,
-  defaultWide = 3
+  defaultDepth = 20,
+  defaultWide = 2
 ): { depth: number; wide: number } {
   let depth = defaultDepth
   let wide = defaultWide

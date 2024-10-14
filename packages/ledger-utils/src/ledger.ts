@@ -89,7 +89,7 @@ export class LedgerWallet implements Wallet {
   }
 
   public async signAllTransactions<
-    T extends Transaction | VersionedTransaction
+    T extends Transaction | VersionedTransaction,
   >(txs: T[]): Promise<T[]> {
     const signedTxs: T[] = []
     for (const tx of txs) {
@@ -328,32 +328,6 @@ export async function searchDerivedPathFromPubkey(
     }
   }
   return null
-}
-
-/**
- *
- * Parsing the derived path string to check heuristic depth and wide.
- *
- * When the derived path is e.g., 44'/501'/0/0/5 then
- * the wide will be 3, depth will be max of the provided numbers as it's 5.
- */
-export function getHeuristicDepthAndWide(
-  derivedPath: string,
-  defaultDepth = 10,
-  defaultWide = 3
-): { depth: number; wide: number } {
-  let depth = defaultDepth
-  let wide = defaultWide
-
-  let splitDerivedPath = derivedPath.split('/')
-  // we expect derived path starts with solana derivation path 44'/501'
-  // going to check parts after first 2
-  if (splitDerivedPath.length > 2) {
-    splitDerivedPath = splitDerivedPath.slice(2)
-    wide = Math.max(defaultWide, splitDerivedPath.length)
-    depth = Math.max(defaultDepth, ...splitDerivedPath.map(v => parseFloat(v)))
-  }
-  return { depth, wide }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

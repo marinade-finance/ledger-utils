@@ -1,5 +1,6 @@
 {
   "extends": "./node_modules/gts/",
+  "plugins": ["node"],
   "rules": {
     "semi": ["error", "never"],
     "node/no-extraneous-import": ["error", {

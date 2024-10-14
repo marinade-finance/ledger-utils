@@ -1,0 +1,29 @@
+{
+  "name": "@marinade.finance/wallets-utils",
+  "version": "4.0.0",
+  "description": "Helpers to work with hard wallets paths",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:marinade-finance/solana-wallets-cli.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified, go to project root\" && exit 1"
+  },
+  "keywords": [
+    "solana",
+    "marinade.finance",
+    "blockchain",
+    "ledger",
+    "trezor",
+    "cli"
+  ],
+  "author": "Marinade Finance",
+  "license": "ISC",
+  "main": "src/index",
+  "files": [
+    "src"
+  ]
+}

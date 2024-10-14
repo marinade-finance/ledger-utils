@@ -1,7 +1,7 @@
 import { generateAllCombinations } from '../src/utils'
 
 describe('Ledger utils', () => {
-  it('should generate combinations', () => {
+  it('should generate combinations 2,2', () => {
     const combinations = generateAllCombinations(2, 2)
     expect(combinations).toEqual([
       [],
@@ -18,6 +18,9 @@ describe('Ledger utils', () => {
       [2, 1],
       [2, 2],
     ])
+  })
+
+  it('should generate combinations 0,5', () => {
     const combinationsZero = generateAllCombinations(0, 5)
     expect(combinationsZero).toEqual([
       [],

@@ -88,7 +88,6 @@ export async function parseLedgerWallet(
   return null
 }
 
-
 export async function parseTrezorWallet(
   pathOrUrl: string,
   logger?: LoggerPlaceholder
