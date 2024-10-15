@@ -23,7 +23,7 @@ The `ledger-utils` is used when `usb://ledger` parameter is passed within CLI pa
 The [`parseWallet`](https://github.com/marinade-finance/marinade-ts-cli/blob/libs_2.1.3/packages/lib/cli-common/src/parsers.ts#L79)
 (an utility function within an utility library https://github.com/marinade-finance/marinade-ts-cli/tree/libs_2.1.3/packages/lib/cli-common)
 kicks in the ledger parsing. When the provided format matches the Solana ledger path (see the BIP44 Parsing info below)
-then an instance of [`Wallet`](./src/ledger.ts) interface is created and could be used for transaction signing.
+then an instance of [`Wallet`](./src/ledger.ts) dinterface is created and could be used for transaction signing.
 
 ## Solana BIP44 Address Parsing
 

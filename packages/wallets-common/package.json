@@ -1,5 +1,5 @@
 {
-  "name": "@marinade.finance/wallets-utils",
+  "name": "@marinade.finance/wallets-common",
   "version": "4.0.0",
   "description": "Helpers to work with hard wallets paths",
   "repository": {
@@ -25,5 +25,11 @@
   "main": "src/index",
   "files": [
     "src"
-  ]
+  ],
+  "devDependencies": {
+    "@solana/web3.js": "1.95.3"
+  },
+  "peerDependencies": {
+    "@solana/web3.js": "1.95.3"
+  }
 }
