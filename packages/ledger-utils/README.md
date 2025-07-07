@@ -9,7 +9,7 @@ The parsing aims to maintain compatibility with the Solana CLI,
 as documented [in Rust solana-labs/solana source code](https://github.com/solana-labs/solana/blob/v1.14.19/clap-utils/src/keypair.rs#L613).
 
 To verify if the parsing matches, run the command `solana-keygen`.
-If you encounter any discrepancies, please reach out to us on [Discord](https://discord.com/invite/6EtUf4Euu6)
+If you encounter any discrepancies, please reach out to us on [Discord](https://discord.gg/yTdH8YkYKg)
 or create an [issue](https://github.com/marinade-finance/ledger-utils/issues) here on GitHub.
 
 ```
