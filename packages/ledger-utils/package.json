@@ -1,42 +1,47 @@
 {
-    "name": "@marinade.finance/ledger-utils",
-    "version": "3.0.2-beta",
-    "description": "Utility to interact with Solana Ledger from CLI",
-    "repository": {
-      "type": "git",
-      "url": "git@github.com:marinade-finance/marinade-ts-cli.git"
-    },
-    "publishConfig": {
-      "access": "public"
-    },
-    "scripts": {
-      "test": "echo \"Error: no test specified, go to project root\" && exit 1"
-    },
-    "keywords": [
-      "solana",
-      "marinade.finance",
-      "blockchain",
-      "ledger",
-      "cli"
-    ],
-    "author": "Marinade Finance",
-    "license": "ISC",
-    "main": "src/index",
-    "files": [
-      "src"
-    ],
-    "devDependencies": {
-        "@ledgerhq/errors": "^6.16.1",
-        "@ledgerhq/hw-app-solana": "^7.1.2",
-        "@ledgerhq/hw-transport-node-hid-noevents": "^6.29.2",
-        "@solana/web3.js": "^1.78.5",
-        "@marinade.finance/ts-common": "^2.1.4"
-    },
-    "peerDependencies": {
-      "@ledgerhq/errors": "^6.16.1",
-      "@ledgerhq/hw-app-solana": "^7.1.2",
-      "@ledgerhq/hw-transport-node-hid-noevents": "^6.29.2",
-      "@solana/web3.js": "^1.78.5",
-      "@marinade.finance/ts-common": "^2.1.4"
-    }
+  "name": "@marinade.finance/ledger-utils",
+  "version": "3.1.0",
+  "description": "Utility to interact with Solana Ledger from CLI",
+  "license": "ISC",
+  "author": "Marinade.Finance",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:marinade-finance/marinade-ts-cli.git"
+  },
+  "keywords": [
+    "solana",
+    "marinade.finance",
+    "blockchain",
+    "ledger",
+    "wallet",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "files": [
+    "dist/",
+    "!dist/src/__tests__",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "test": "pnpm jest --config ../../jest.config.js --testPathPattern=\"$(pwd)\""
+  },
+  "devDependencies": {
+    "@ledgerhq/errors": "^6.16.1",
+    "@ledgerhq/hw-app-solana": "^7.1.2",
+    "@ledgerhq/hw-transport-node-hid-noevents": "^6.29.2",
+    "@solana/web3.js": "^1.98.4",
+    "@marinade.finance/ts-common": "file:/home/chalda/marinade/typescript-common/packages/ts-common/"
+  },
+  "peerDependencies": {
+    "@ledgerhq/errors": "^6.16.1",
+    "@ledgerhq/hw-app-solana": "^7.1.2",
+    "@ledgerhq/hw-transport-node-hid-noevents": "^6.29.2",
+    "@solana/web3.js": "^1.98.4",
+    "@marinade.finance/ts-common": "^4.0.0"
   }
+}

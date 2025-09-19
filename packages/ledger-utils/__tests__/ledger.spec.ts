@@ -1,5 +1,6 @@
-import { getHeuristicDepthAndWide, parseLedgerUrl } from '../src/ledger'
 import { PublicKey } from '@solana/web3.js'
+
+import { getHeuristicDepthAndWide, parseLedgerUrl } from '../src/ledger'
 
 describe('Ledger', () => {
   it('should parse a valid Ledger URL', () => {
@@ -71,7 +72,7 @@ describe('Ledger', () => {
 
   it('should throw an error for an invalid Ledger URL', () => {
     const url = 'invalid-url'
-    expect(() => parseLedgerUrl(url)).toThrowError(
+    expect(() => parseLedgerUrl(url)).toThrow(
       'Invalid ledger url invalid-url. Expected url started with "usb://ledger"'
     )
   })

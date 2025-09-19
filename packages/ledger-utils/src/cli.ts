@@ -1,14 +1,16 @@
+/* eslint-disable sonarjs/cognitive-complexity */
+
 import {
   LockedDeviceError,
   TransportError,
   TransportStatusError,
 } from '@ledgerhq/errors'
-import { CLI_LEDGER_URL_PREFIX, LedgerWallet, Wallet } from './ledger'
-import {
-  LoggerPlaceholder,
-  logError,
-  logDebug,
-} from '@marinade.finance/ts-common'
+import { logError, logDebug } from '@marinade.finance/ts-common'
+
+import { CLI_LEDGER_URL_PREFIX, LedgerWallet } from './ledger'
+
+import type { Wallet } from './ledger'
+import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
 
 /**
  * Parsing provided argument as a ledger url.
@@ -20,12 +22,12 @@ export async function parseLedgerWallet(
   pathOrUrl: string,
   logger?: LoggerPlaceholder
 ): Promise<Wallet | null> {
-  pathOrUrl = pathOrUrl.trim()
+  const pathOrUrlTrimmed = pathOrUrl.trim()
 
   // trying ledger (https://docs.solana.com/wallet-guide/hardware-wallets/ledger)
-  if (pathOrUrl.startsWith(CLI_LEDGER_URL_PREFIX)) {
+  if (pathOrUrlTrimmed.startsWith(CLI_LEDGER_URL_PREFIX)) {
     try {
-      const solanaLedger = await LedgerWallet.instance(pathOrUrl, logger)
+      const solanaLedger = await LedgerWallet.instance(pathOrUrlTrimmed, logger)
       logDebug(
         logger,
         `Successfully connected to Ledger device of key ${solanaLedger.publicKey.toBase58()}`
@@ -36,7 +38,7 @@ export async function parseLedgerWallet(
         if (e.statusCode === 0x6d02) {
           logError(
             logger,
-            `Ledger device [${pathOrUrl}] ` +
+            `Ledger device [${pathOrUrlTrimmed}] ` +
               ': Solana application is not opened. ' +
               'Please, enter the Solana app on your ledger device first.'
           )
@@ -49,7 +51,7 @@ export async function parseLedgerWallet(
         } else if (e.statusCode === 0x5515) {
           logError(
             logger,
-            `Ledger device [${pathOrUrl}] is locked. ` +
+            `Ledger device [${pathOrUrlTrimmed}] is locked. ` +
               'Please, unlock it first.'
           )
         }
@@ -59,13 +61,13 @@ export async function parseLedgerWallet(
       ) {
         logError(
           logger,
-          `Ledger device  [${pathOrUrl}] seems not being acknowledged to have opened the manager. ` +
+          `Ledger device  [${pathOrUrlTrimmed}] seems not being acknowledged to have opened the manager. ` +
             'Please, open ledger manager first on your device.'
         )
       } else if (e instanceof LockedDeviceError) {
         logError(
           logger,
-          `Ledger device [${pathOrUrl}] is locked. ` +
+          `Ledger device [${pathOrUrlTrimmed}] is locked. ` +
             'Please, unlock it first.'
         )
       } else if (
@@ -74,11 +76,14 @@ export async function parseLedgerWallet(
       ) {
         logError(
           logger,
-          `Ledger device [${pathOrUrl}] ` +
+          `Ledger device [${pathOrUrlTrimmed}] ` +
             'cannot be open, it seems to be closed. Ensure no other program uses it.'
         )
       } else {
-        logError(logger, `Failed to connect to Ledger device [${pathOrUrl}]`)
+        logError(
+          logger,
+          `Failed to connect to Ledger device [${pathOrUrlTrimmed}]`
+        )
       }
       throw e
     }

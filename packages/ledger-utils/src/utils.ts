@@ -1,3 +1,5 @@
+import assert from 'assert'
+
 /**
  * Generating all combinations for derivation path.
  * When maxDepth is 2 and maxLength is 2, the result is:
@@ -17,7 +19,8 @@ export function generateAllCombinations(
       combinations.push(prefix)
       return
     }
-    for (let i = 0; i <= maxDepth!; i++) {
+    assert(maxDepth !== undefined)
+    for (let i = 0; i <= maxDepth; i++) {
       generate([...prefix, i], remainingLength - 1)
     }
   }
