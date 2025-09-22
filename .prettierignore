@@ -9,7 +9,6 @@ fixtures/
 
 *.tsbuildinfo
 .tsbuildinfo
-packages/marinade-ts-cli/.tsbuildinfo
 pnpm-lock.yaml
 
 .vscode/
