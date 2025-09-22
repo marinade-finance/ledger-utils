@@ -6,7 +6,7 @@
   "author": "Marinade.Finance",
   "repository": {
     "type": "git",
-    "url": "git@github.com:marinade-finance/marinade-ts-cli.git"
+    "url": "git@github.com:marinade-finance/ledger-utils.git"
   },
   "keywords": [
     "solana",
