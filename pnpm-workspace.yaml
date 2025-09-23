@@ -1,2 +1,8 @@
 packages:
-  - 'packages/*'
+  - packages/*
+
+onlyBuiltDependencies:
+  - bufferutil
+  - node-hid
+  - unrs-resolver
+  - utf-8-validate
