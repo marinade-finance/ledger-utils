@@ -54,8 +54,8 @@ importers:
         specifier: ^6.29.2
         version: 6.30.11
       '@marinade.finance/ts-common':
-        specifier: file:/home/chalda/marinade/typescript-common/packages/ts-common/
-        version: file:../typescript-common/packages/ts-common
+        specifier: 4.0.0
+        version: 4.0.0
       '@solana/web3.js':
         specifier: ^1.98.4
         version: 1.98.4(bufferutil@4.0.9)(typescript@5.4.5)(utf-8-validate@5.0.10)
@@ -444,8 +444,8 @@ packages:
       eslint: ^9.0.0
       typescript: '>=4.0.0'
 
-  '@marinade.finance/ts-common@file:../typescript-common/packages/ts-common':
-    resolution: {directory: ../typescript-common/packages/ts-common, type: directory}
+  '@marinade.finance/ts-common@4.0.0':
+    resolution: {integrity: sha512-GLuNtx9cE/1dnlPglrz1XiBt0eunCH4s9bF+Jq6riPL3AITt9HlhzuLM6B4oNDSrwl8SIisnMv+XuLbqrbSVCg==}
     engines: {node: '>=14'}
 
   '@napi-rs/wasm-runtime@0.2.12':
@@ -3445,7 +3445,7 @@ snapshots:
       - prettier
       - supports-color
 
-  '@marinade.finance/ts-common@file:../typescript-common/packages/ts-common':
+  '@marinade.finance/ts-common@4.0.0':
     dependencies:
       decimal.js: 10.6.0
 
