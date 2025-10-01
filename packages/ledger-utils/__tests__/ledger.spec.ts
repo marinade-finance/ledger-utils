@@ -19,7 +19,7 @@ describe('Ledger', () => {
     const url3 = 'usb://ledger/GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV'
     expect(parseLedgerUrl(url3)).toEqual({
       parsedPubkey: new PublicKey(
-        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV'
+        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV',
       ),
       parsedDerivedPath: "44'/501'",
     })
@@ -28,7 +28,7 @@ describe('Ledger', () => {
       'usb://ledger/GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV?key=0'
     expect(parseLedgerUrl(url4)).toEqual({
       parsedPubkey: new PublicKey(
-        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV'
+        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV',
       ),
       parsedDerivedPath: "44'/501'/0",
     })
@@ -37,7 +37,7 @@ describe('Ledger', () => {
       'usb://ledger/GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV?key=/0/0'
     expect(parseLedgerUrl(url6)).toEqual({
       parsedPubkey: new PublicKey(
-        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV'
+        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV',
       ),
       parsedDerivedPath: "44'/501'/0/0",
     })
@@ -46,7 +46,7 @@ describe('Ledger', () => {
       'usb://ledger/GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV?key='
     expect(parseLedgerUrl(url7)).toEqual({
       parsedPubkey: new PublicKey(
-        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV'
+        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV',
       ),
       parsedDerivedPath: "44'/501'",
     })
@@ -55,7 +55,7 @@ describe('Ledger', () => {
       'usb://ledger/GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV?key=44/501/1/2/3'
     expect(parseLedgerUrl(url8)).toEqual({
       parsedPubkey: new PublicKey(
-        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV'
+        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV',
       ),
       parsedDerivedPath: '44/501/1/2/3',
     })
@@ -64,7 +64,7 @@ describe('Ledger', () => {
       "usb://ledger/GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV?key=44/501/0'/0'/0'"
     expect(parseLedgerUrl(url9)).toEqual({
       parsedPubkey: new PublicKey(
-        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV'
+        'GontTwDeBduvbW85oHyC8A7GekuT8X1NkZHDDdUWWvsV',
       ),
       parsedDerivedPath: "44/501/0'/0'/0'",
     })
@@ -73,7 +73,7 @@ describe('Ledger', () => {
   it('should throw an error for an invalid Ledger URL', () => {
     const url = 'invalid-url'
     expect(() => parseLedgerUrl(url)).toThrow(
-      'Invalid ledger url invalid-url. Expected url started with "usb://ledger"'
+      'Invalid ledger url invalid-url. Expected url started with "usb://ledger"',
     )
   })
 

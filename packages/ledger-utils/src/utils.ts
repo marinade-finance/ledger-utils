@@ -7,7 +7,7 @@ import assert from 'assert'
  */
 export function generateAllCombinations(
   maxDepth: number | undefined,
-  maxLength: number | undefined
+  maxLength: number | undefined,
 ): number[][] {
   if (maxDepth === undefined || maxLength === undefined) {
     return []

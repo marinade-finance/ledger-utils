@@ -26,10 +26,10 @@ const IN_LIB_TRANSPORT_CACHE: Map<string, TransportNodeHid> = new Map()
  */
 export interface Wallet {
   signTransaction<T extends Transaction | VersionedTransaction>(
-    tx: T
+    tx: T,
   ): Promise<T>
   signAllTransactions<T extends Transaction | VersionedTransaction>(
-    txs: T[]
+    txs: T[],
   ): Promise<T[]>
   publicKey: PublicKey
 }
@@ -42,7 +42,7 @@ export class LedgerWallet implements Wallet {
    */
   static async instance(
     ledgerUrl = '0',
-    logger: LoggerPlaceholder | undefined = undefined
+    logger: LoggerPlaceholder | undefined = undefined,
   ): Promise<LedgerWallet> {
     // parsedPubkey could be undefined when not provided in url string
     const { parsedPubkey, parsedDerivedPath } = parseLedgerUrl(ledgerUrl)
@@ -50,7 +50,7 @@ export class LedgerWallet implements Wallet {
     const { api, pubkey, derivedPath } = await LedgerWallet.getSolanaApi(
       parsedPubkey,
       parsedDerivedPath,
-      logger
+      logger,
     )
     return new LedgerWallet(api, derivedPath, pubkey, logger)
   }
@@ -59,11 +59,11 @@ export class LedgerWallet implements Wallet {
     public readonly solanaApi: Solana,
     public readonly derivedPath: string,
     public readonly publicKey: PublicKey,
-    public readonly logger: LoggerPlaceholder | undefined = undefined
+    public readonly logger: LoggerPlaceholder | undefined = undefined,
   ) {}
 
   public async signTransaction<T extends Transaction | VersionedTransaction>(
-    tx: T
+    tx: T,
   ): Promise<T> {
     let message: Message | MessageV0
     if (tx instanceof Transaction) {
@@ -75,7 +75,7 @@ export class LedgerWallet implements Wallet {
       this.logger,
       `Waiting for your approval on Ledger hardware wallet ${
         this.derivedPath
-      } [[${this.publicKey.toBase58()}]]`
+      } [[${this.publicKey.toBase58()}]]`,
     )
     const signature = await this.signMessage(message)
     tx.addSignature(this.publicKey, signature)
@@ -108,7 +108,7 @@ export class LedgerWallet implements Wallet {
     derivedPath: string,
     logger: LoggerPlaceholder | undefined = undefined,
     heuristicDepth: number | undefined = 10,
-    heuristicWide: number | undefined = 3
+    heuristicWide: number | undefined = 3,
   ): Promise<{ api: Solana; derivedPath: string; pubkey: PublicKey }> {
     const ledgerDevices = getDevices()
     if (ledgerDevices.length === 0) {
@@ -137,25 +137,25 @@ export class LedgerWallet implements Wallet {
         logInfo(
           logger,
           `Public key ${pubkey.toBase58()} has not been found at the default or provided ` +
-            `derivation path ${derivedPathDefined}. Going to search, it will take a while...`
+            `derivation path ${derivedPathDefined}. Going to search, it will take a while...`,
         )
         const { depth, wide } = getHeuristicDepthAndWide(
           derivedPathDefined,
           heuristicDepth,
-          heuristicWide
+          heuristicWide,
         )
         const searchedData = await searchDerivedPathFromPubkey(
           pubkey,
           logger,
           depth,
-          wide
+          wide,
         )
         if (searchedData !== null) {
           transport = searchedData.transport
           derivedPathDefined = searchedData.derivedPath
           logInfo(
             logger,
-            `For public key ${pubkey.toBase58()} has been found derived path ${derivedPathDefined}`
+            `For public key ${pubkey.toBase58()} has been found derived path ${derivedPathDefined}`,
           )
         }
       }
@@ -164,7 +164,7 @@ export class LedgerWallet implements Wallet {
     if (transport === undefined) {
       throw new Error(
         'Available ledger devices does not provide pubkey ' +
-          `'${pubkey?.toBase58()}' for derivation path '${derivedPathDefined}'`
+          `'${pubkey?.toBase58()}' for derivation path '${derivedPathDefined}'`,
       )
     }
 
@@ -188,11 +188,11 @@ export class LedgerWallet implements Wallet {
       this.logger,
       'signing message with pubkey ' +
         (await getPublicKey(this.solanaApi, this.derivedPath)).toBase58() +
-        ` of derived path ${this.derivedPath}`
+        ` of derived path ${this.derivedPath}`,
     )
     const { signature } = await this.solanaApi.signTransaction(
       this.derivedPath,
-      Buffer.from(message.serialize())
+      Buffer.from(message.serialize()),
     )
     return signature
   }
@@ -204,7 +204,7 @@ export class LedgerWallet implements Wallet {
  */
 export async function getPublicKey(
   solanaApi: Solana,
-  derivedPath: string
+  derivedPath: string,
 ): Promise<PublicKey> {
   const { address: bufAddress } = await solanaApi.getAddress(derivedPath)
   return new PublicKey(bufAddress)
@@ -227,7 +227,7 @@ export function parseLedgerUrl(ledgerUrl: string): {
   let ledgerUrlDefined = ledgerUrl.trim()
   if (!ledgerUrlDefined.startsWith(CLI_LEDGER_URL_PREFIX)) {
     throw new Error(
-      `Invalid ledger url ${ledgerUrlDefined}. Expected url started with "usb://ledger".`
+      `Invalid ledger url ${ledgerUrlDefined}. Expected url started with "usb://ledger".`,
     )
   }
   let parsedPubkey: PublicKey | undefined
@@ -238,7 +238,7 @@ export function parseLedgerUrl(ledgerUrl: string): {
   ledgerUrlDefined = ledgerUrlDefined.replace(ledgerUrlRegexp, '')
 
   const parsePubkey = function (
-    pubkey: string | undefined
+    pubkey: string | undefined,
   ): PublicKey | undefined {
     if (pubkey === undefined || pubkey === '') {
       return undefined
@@ -249,7 +249,7 @@ export function parseLedgerUrl(ledgerUrl: string): {
         throw new Error(
           'Failed to parse pubkey from ledger url ' +
             ledgerUrlDefined +
-            `. Expecting the ${pubkey} being pubkey, error: ${String(e)}`
+            `. Expecting the ${pubkey} being pubkey, error: ${String(e)}`,
         )
       }
     }
@@ -279,7 +279,7 @@ export function parseLedgerUrl(ledgerUrl: string): {
   } else {
     throw new Error(
       `Invalid ledger url ${ledgerUrlDefined}` +
-        '. Expected url format "usb://ledger<pubkey>?key=<number>"'
+        '. Expected url format "usb://ledger<pubkey>?key=<number>"',
     )
   }
 
@@ -290,7 +290,7 @@ export async function searchDerivedPathFromPubkey(
   pubkey: PublicKey,
   logger: LoggerPlaceholder | undefined = undefined,
   heuristicDepth: number | undefined = 10,
-  heuristicWide: number | undefined = 3
+  heuristicWide: number | undefined = 3,
 ): Promise<{
   derivedPath: string
   solanaApi: Solana
@@ -304,7 +304,7 @@ export async function searchDerivedPathFromPubkey(
 
   const heuristicsCombinations: number[][] = generateAllCombinations(
     heuristicDepth,
-    heuristicWide
+    heuristicWide,
   )
 
   for (const transport of openedTransports) {
@@ -319,7 +319,7 @@ export async function searchDerivedPathFromPubkey(
       if (ledgerPubkey.equals(pubkey)) {
         logDebug(
           logger,
-          `Found path ${heuristicDerivedPath}, pubkey ${pubkey.toBase58()}`
+          `Found path ${heuristicDerivedPath}, pubkey ${pubkey.toBase58()}`,
         )
         return { derivedPath: heuristicDerivedPath, solanaApi, transport }
       }
@@ -338,7 +338,7 @@ export async function searchDerivedPathFromPubkey(
 export function getHeuristicDepthAndWide(
   derivedPath: string,
   defaultDepth = 10,
-  defaultWide = 3
+  defaultWide = 3,
 ): { depth: number; wide: number } {
   let depth = defaultDepth
   let wide = defaultWide
