@@ -1,6 +1,6 @@
 {
   "name": "@marinade.finance/ledger-utils",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Utility to interact with Solana Ledger from CLI",
   "license": "ISC",
   "author": "Marinade.Finance",
@@ -30,18 +30,22 @@
     "build": "tsc --build",
     "test": "pnpm jest --config ../../jest.config.js --testPathPattern=\"$(pwd)\""
   },
+  "dependencies": {
+    "@solana/keys": "^6.1.0",
+    "@solana/offchain-messages": "^6.1.0"
+  },
   "devDependencies": {
-    "@ledgerhq/errors": "^6.16.1",
-    "@ledgerhq/hw-app-solana": "^7.1.2",
-    "@ledgerhq/hw-transport-node-hid-noevents": "^6.29.2",
-    "@solana/web3.js": "^1.98.4",
-    "@marinade.finance/ts-common": "4.0.0"
+    "@ledgerhq/errors": "^6.29.0",
+    "@ledgerhq/hw-app-solana": "^7.7.0",
+    "@ledgerhq/hw-transport-node-hid-noevents": "^6.31.0",
+    "@marinade.finance/ts-common": "4.2.0",
+    "@solana/web3.js": "^1.98.4"
   },
   "peerDependencies": {
-    "@ledgerhq/errors": "^6.16.1",
-    "@ledgerhq/hw-app-solana": "^7.1.2",
-    "@ledgerhq/hw-transport-node-hid-noevents": "^6.29.2",
-    "@solana/web3.js": "^1.98.4",
-    "@marinade.finance/ts-common": "^4.0.0"
+    "@ledgerhq/errors": "^6.29.0",
+    "@ledgerhq/hw-app-solana": "^7.7.0",
+    "@ledgerhq/hw-transport-node-hid-noevents": "^6.31.0",
+    "@marinade.finance/ts-common": "^4.2.0",
+    "@solana/web3.js": "^1.98.4"
   }
 }
