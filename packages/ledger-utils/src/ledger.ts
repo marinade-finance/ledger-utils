@@ -1,16 +1,34 @@
-/* eslint-disable sonarjs/cognitive-complexity, no-await-in-loop, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable no-await-in-loop, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-member-access */
 
 import Solana from '@ledgerhq/hw-app-solana'
 import TransportNodeHid, {
   getDevices,
 } from '@ledgerhq/hw-transport-node-hid-noevents'
 import { logDebug, logInfo, scheduleOnExit } from '@marinade.finance/ts-common'
+import {
+  createKeyPairFromBytes,
+  signBytes,
+  signatureBytes,
+  verifySignature,
+} from '@solana/keys'
+import {
+  getOffchainMessageV0Encoder,
+  offchainMessageApplicationDomain,
+  offchainMessageContentRestrictedAsciiOf1232BytesMax,
+  offchainMessageContentUtf8Of1232BytesMax,
+  offchainMessageContentUtf8Of65535BytesMax,
+} from '@solana/offchain-messages'
 import { PublicKey, Transaction } from '@solana/web3.js'
 
 import { generateAllCombinations } from './utils'
 
 import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
-import type { MessageV0, Message, VersionedTransaction } from '@solana/web3.js'
+import type {
+  MessageV0,
+  Message,
+  VersionedTransaction,
+  Keypair,
+} from '@solana/web3.js'
 
 export const CLI_LEDGER_URL_PREFIX = 'usb://ledger'
 export const SOLANA_LEDGER_BIP44_BASE_PATH = "44'/501'"
@@ -171,6 +189,39 @@ export class LedgerWallet implements Wallet {
     const api = new Solana(transport)
     const pubkeyKey = await getPublicKey(api, derivedPathDefined)
     return { api, derivedPath: derivedPathDefined, pubkey: pubkeyKey }
+  }
+
+  /**
+   * Sign an off-chain text message with the Ledger device.
+   * The message is formatted per Solana's off-chain message signing standard
+   * and signed with the device's private key (Ed25519).
+   *
+   * @param message the text message to sign
+   * @param applicationDomain 32-byte application identifier as base58 string (e.g., a program address)
+   *
+   * The returned signature can be verified with `verifyOffchainMessage`.
+   */
+  public async signOffchainMessage(
+    message: string,
+    applicationDomain: string,
+  ): Promise<Buffer> {
+    const msgBuffer = formatOffchainMessage(
+      message,
+      applicationDomain,
+      this.publicKey,
+    )
+    logInfo(
+      this.logger,
+      `Waiting for your approval on Ledger hardware wallet ${
+        this.derivedPath
+      } [[${this.publicKey.toBase58()}]]`,
+    )
+    const { signature } = await this.solanaApi.signOffchainMessage(
+      this.derivedPath,
+      msgBuffer,
+    )
+    logInfo(this.logger, '✅ Approved')
+    return signature
   }
 
   /**
@@ -352,6 +403,110 @@ export function getHeuristicDepthAndWide(
     depth = Math.max(defaultDepth, ...splitDerivedPath.map(v => parseFloat(v)))
   }
   return { depth, wide }
+}
+
+/**
+ * Formats a text message into Solana off-chain message format (v0)
+ * using @solana/offchain-messages encoder.
+ * See https://github.com/solana-labs/solana/blob/master/docs/src/proposals/off-chain-message-signing.md
+ *
+ * @param message the text message
+ * @param applicationDomain 32-byte application identifier as base58 string
+ * @param signerPublicKey the public key of the signer
+ */
+export function formatOffchainMessage(
+  message: string,
+  applicationDomain: string,
+  signerPublicKey: PublicKey,
+): Buffer {
+  const encoder = getOffchainMessageV0Encoder()
+  const domain = offchainMessageApplicationDomain(applicationDomain)
+  const signatories = [
+    { address: signerPublicKey.toBase58() as never },
+  ] as const
+
+  const messageBytes = Buffer.from(message, 'utf-8')
+  const isRestrictedAscii = /^[\x20-\x7e]*$/.test(message)
+
+  if (isRestrictedAscii && messageBytes.length <= 1232) {
+    return Buffer.from(
+      encoder.encode({
+        version: 0,
+        applicationDomain: domain,
+        content: offchainMessageContentRestrictedAsciiOf1232BytesMax(message),
+        requiredSignatories: signatories,
+      }),
+    )
+  } else if (messageBytes.length <= 1232) {
+    return Buffer.from(
+      encoder.encode({
+        version: 0,
+        applicationDomain: domain,
+        content: offchainMessageContentUtf8Of1232BytesMax(message),
+        requiredSignatories: signatories,
+      }),
+    )
+  } else {
+    return Buffer.from(
+      encoder.encode({
+        version: 0,
+        applicationDomain: domain,
+        content: offchainMessageContentUtf8Of65535BytesMax(message),
+        requiredSignatories: signatories,
+      }),
+    )
+  }
+}
+
+/**
+ * Signs a Solana off-chain message with a file-based Keypair.
+ * Produces the same signature format as LedgerWallet.signOffchainMessage,
+ * verifiable with verifyOffchainMessage.
+ *
+ * @param message the text message to sign
+ * @param keypair the file-based Keypair
+ * @param applicationDomain 32-byte application identifier as base58 string
+ */
+export async function signOffchainMessage(
+  message: string,
+  keypair: Keypair,
+  applicationDomain: string,
+): Promise<Buffer> {
+  const formatted = formatOffchainMessage(
+    message,
+    applicationDomain,
+    new PublicKey(keypair.publicKey),
+  )
+  const { privateKey } = await createKeyPairFromBytes(keypair.secretKey)
+  const sig = await signBytes(privateKey, formatted)
+  return Buffer.from(sig)
+}
+
+/**
+ * Verifies an Ed25519 signature over a Solana off-chain message.
+ * Works with signatures from both LedgerWallet.signOffchainMessage and signOffchainMessage.
+ *
+ * @param message the text message that was signed
+ * @param signature the 64-byte Ed25519 signature
+ * @param publicKey the public key of the signer
+ * @param applicationDomain 32-byte application identifier as base58 string
+ */
+export async function verifyOffchainMessage(
+  message: string,
+  signature: Buffer,
+  publicKey: PublicKey,
+  applicationDomain: string,
+): Promise<boolean> {
+  const formatted = formatOffchainMessage(message, applicationDomain, publicKey)
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    new Uint8Array(publicKey.toBytes()),
+    'Ed25519',
+    true,
+    ['verify'],
+  )
+  const sig = signatureBytes(new Uint8Array(signature))
+  return verifySignature(cryptoKey, sig, formatted)
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
