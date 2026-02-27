@@ -1,5 +1,7 @@
 # Solana Ledger utilities
 
+<a href="https://www.npmjs.com/package/@marinade.finance/ledger-utils"><img src="https://img.shields.io/npm/v/%40marinade.finance%2Fledger-utils?logo=npm&color=377CC0" /></a>
+
 TypeScript ledger utilities for Solana, mainly targeted to be used in CLI nodejs applications.
 
 For more see [ledger-utils/README](packages/ledger-utils/README.md).
