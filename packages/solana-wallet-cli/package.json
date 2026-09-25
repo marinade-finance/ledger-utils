@@ -1,0 +1,42 @@
+{
+  "name": "@marinade.finance/solana-wallet-cli",
+  "version": "1.0.0",
+  "description": "Hardware wallet (Ledger, Trezor) support for Solana CLI tools",
+  "license": "ISC",
+  "author": "Marinade.Finance",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:marinade-finance/ledger-utils.git"
+  },
+  "keywords": [
+    "solana",
+    "marinade.finance",
+    "blockchain",
+    "ledger",
+    "trezor",
+    "wallet",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "files": [
+    "dist/",
+    "!dist/src/__tests__",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "test": "pnpm jest --config ../../jest.config.js --testPathPattern=\"$(pwd)\""
+  },
+  "devDependencies": {
+    "@marinade.finance/ts-common": "4.2.0",
+    "@solana/web3.js": "^1.98.4"
+  },
+  "peerDependencies": {
+    "@marinade.finance/ts-common": "^4.2.0",
+    "@solana/web3.js": "^1.98.4"
+  }
+}

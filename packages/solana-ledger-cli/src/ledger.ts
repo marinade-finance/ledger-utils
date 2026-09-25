@@ -18,11 +18,20 @@ import {
   offchainMessageContentUtf8Of1232BytesMax,
   offchainMessageContentUtf8Of65535BytesMax,
 } from '@solana/offchain-messages'
+import {
+  SOLANA_BIP44_BASE_PATH,
+  WalletType,
+  generateAllCombinations,
+  obtainAccountDiscoveryDepthAndWide,
+  parseWalletUrl,
+} from '@marinade.finance/solana-wallet-cli-utils'
 import { PublicKey, Transaction } from '@solana/web3.js'
 
-import { generateAllCombinations } from './utils'
-
 import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
+import type {
+  ParsedWalletData,
+  Wallet,
+} from '@marinade.finance/solana-wallet-cli-utils'
 import type {
   MessageV0,
   Message,
@@ -30,27 +39,7 @@ import type {
   Keypair,
 } from '@solana/web3.js'
 
-export const CLI_LEDGER_URL_PREFIX = 'usb://ledger'
-export const SOLANA_LEDGER_BIP44_BASE_PATH = "44'/501'"
-export const SOLANA_LEDGER_BIP44_BASE_REGEXP = /^44[']{0,1}\/501[']{0,1}\//
-export const DEFAULT_DERIVATION_PATH = SOLANA_LEDGER_BIP44_BASE_PATH
-
 const IN_LIB_TRANSPORT_CACHE: Map<string, TransportNodeHid> = new Map()
-
-/**
- * Wallet interface for objects that can be used to sign provider transactions.
- * The interface is compatible with @coral-xyz/anchor/dist/cjs/provider in version 0.28.0
- * See https://github.com/coral-xyz/anchor/blob/v0.28.0/ts/packages/anchor/src/provider.ts#L344
- */
-export interface Wallet {
-  signTransaction<T extends Transaction | VersionedTransaction>(
-    tx: T,
-  ): Promise<T>
-  signAllTransactions<T extends Transaction | VersionedTransaction>(
-    txs: T[],
-  ): Promise<T[]>
-  publicKey: PublicKey
-}
 
 export class LedgerWallet implements Wallet {
   /**
@@ -63,7 +52,10 @@ export class LedgerWallet implements Wallet {
     logger: LoggerPlaceholder | undefined = undefined,
   ): Promise<LedgerWallet> {
     // parsedPubkey could be undefined when not provided in url string
-    const { parsedPubkey, parsedDerivedPath } = parseLedgerUrl(ledgerUrl)
+    const parsedWallet: ParsedWalletData = parseWalletUrl(ledgerUrl)
+    if (parsedWallet.walletType !== WalletType.LEDGER) {
+      throw new 
+    }
 
     const { api, pubkey, derivedPath } = await LedgerWallet.getSolanaApi(
       parsedPubkey,
@@ -157,7 +149,7 @@ export class LedgerWallet implements Wallet {
           `Public key ${pubkey.toBase58()} has not been found at the default or provided ` +
             `derivation path ${derivedPathDefined}. Going to search, it will take a while...`,
         )
-        const { depth, wide } = getHeuristicDepthAndWide(
+        const { depth, wide } = obtainAccountDiscoveryDepthAndWide(
           derivedPathDefined,
           heuristicDepth,
           heuristicWide,
@@ -261,82 +253,6 @@ export async function getPublicKey(
   return new PublicKey(bufAddress)
 }
 
-/**
- * Parsing string as ledger url that could be in format of url or derivation path.
- * Some of the examples (trying to be compatible with solana cli https://github.com/solana-labs/solana/blob/v1.14.19/clap-utils/src/keypair.rs#L613)
- * Derivation path consists of the "44'" part that signifies the BIP44 standard, and the "501'" part that signifies the Solana's BIP44 coin type.
- *
- * - `usb://ledger` - taking first device and using solana default derivation path 44/501
- * - `usb://ledger?key=0/1` - taking first device and using solana derivation path 44/501/0/1
- * - `usb://ledger/9rPVSygg3brqghvdZ6wsL2i5YNQTGhXGdJzF65YxaCQd` - searching of all ledger devices where solana default derivation path 44/501/0/0 will result in pubkey 9rPVSygg3brqghvdZ6wsL2i5YNQTGhXGdJzF65YxaCQd
- * - `usb://ledger/9rPVSygg3brqghvdZ6wsL2i5YNQTGhXGdJzF65YxaCQd?key=0/1` - searching of all ledger devices where solana derivation path 44/501/0/1 will result in pubkey 9rPVSygg3brqghvdZ6wsL2i5YNQTGhXGdJzF65YxaCQd
- */
-export function parseLedgerUrl(ledgerUrl: string): {
-  parsedPubkey: PublicKey | undefined
-  parsedDerivedPath: string
-} {
-  let ledgerUrlDefined = ledgerUrl.trim()
-  if (!ledgerUrlDefined.startsWith(CLI_LEDGER_URL_PREFIX)) {
-    throw new Error(
-      `Invalid ledger url ${ledgerUrlDefined}. Expected url started with "usb://ledger".`,
-    )
-  }
-  let parsedPubkey: PublicKey | undefined
-  let parsedDerivedPath: string
-
-  // removal of the prefix + optional slash
-  const ledgerUrlRegexp = new RegExp(CLI_LEDGER_URL_PREFIX + '/?')
-  ledgerUrlDefined = ledgerUrlDefined.replace(ledgerUrlRegexp, '')
-
-  const parsePubkey = function (
-    pubkey: string | undefined,
-  ): PublicKey | undefined {
-    if (pubkey === undefined || pubkey === '') {
-      return undefined
-    } else {
-      try {
-        return new PublicKey(pubkey)
-      } catch (e) {
-        throw new Error(
-          'Failed to parse pubkey from ledger url ' +
-            ledgerUrlDefined +
-            `. Expecting the ${pubkey} being pubkey, error: ${String(e)}`,
-        )
-      }
-    }
-  }
-
-  // checking existence of ?key= part
-  const parts = ledgerUrlDefined.split('?key=')
-  if (parts.length === 1) {
-    //case: usb://ledger/<pubkey>
-    parsedPubkey = parsePubkey(parts[0])
-    parsedDerivedPath = DEFAULT_DERIVATION_PATH
-  } else if (parts.length === 2) {
-    //case: usb://ledger/<pubkey>?key=<number>
-    parsedPubkey = parsePubkey(parts[0])
-    const key = parts[1]
-    if (key === undefined || key === '') {
-      // case: usb://ledger/<pubkey>?key=
-      parsedDerivedPath = DEFAULT_DERIVATION_PATH
-    } else if (SOLANA_LEDGER_BIP44_BASE_REGEXP.test(key)) {
-      // case: usb://ledger/<pubkey>?key=44'/501'/<number>
-      parsedDerivedPath = key
-    } else {
-      // case: usb://ledger/<pubkey>?key=<number>
-      const keyTrimmed = key.replace(/^\//, '')
-      parsedDerivedPath = SOLANA_LEDGER_BIP44_BASE_PATH + '/' + keyTrimmed
-    }
-  } else {
-    throw new Error(
-      `Invalid ledger url ${ledgerUrlDefined}` +
-        '. Expected url format "usb://ledger<pubkey>?key=<number>"',
-    )
-  }
-
-  return { parsedPubkey, parsedDerivedPath }
-}
-
 export async function searchDerivedPathFromPubkey(
   pubkey: PublicKey,
   logger: LoggerPlaceholder | undefined = undefined,
@@ -362,7 +278,7 @@ export async function searchDerivedPathFromPubkey(
     const solanaApi = new Solana(transport)
     for (const combination of heuristicsCombinations) {
       const strCombination = combination.map(v => v.toString())
-      strCombination.unshift(SOLANA_LEDGER_BIP44_BASE_PATH)
+      strCombination.unshift(SOLANA_BIP44_BASE_PATH)
       const heuristicDerivedPath = strCombination.join('/')
 
       logDebug(logger, `search loop: ${heuristicDerivedPath}`)
@@ -377,32 +293,6 @@ export async function searchDerivedPathFromPubkey(
     }
   }
   return null
-}
-
-/**
- *
- * Parsing the derived path string to check heuristic depth and wide.
- *
- * When the derived path is e.g., 44'/501'/0/0/5 then
- * the wide will be 3, depth will be max of the provided numbers as it's 5.
- */
-export function getHeuristicDepthAndWide(
-  derivedPath: string,
-  defaultDepth = 10,
-  defaultWide = 3,
-): { depth: number; wide: number } {
-  let depth = defaultDepth
-  let wide = defaultWide
-
-  let splitDerivedPath = derivedPath.split('/')
-  // we expect derived path starts with solana derivation path 44'/501'
-  // going to check parts after first 2
-  if (splitDerivedPath.length > 2) {
-    splitDerivedPath = splitDerivedPath.slice(2)
-    wide = Math.max(defaultWide, splitDerivedPath.length)
-    depth = Math.max(defaultDepth, ...splitDerivedPath.map(v => parseFloat(v)))
-  }
-  return { depth, wide }
 }
 
 /**

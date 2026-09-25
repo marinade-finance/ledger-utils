@@ -10,6 +10,7 @@
     "check": "pnpm lint && pnpm format:check",
     "fix": "pnpm lint:fix && pnpm format",
     "prepare": "husky",
+    "cli": "ts-node ./packages/solana-wallet-cli-test/src/",
     "publish:all": "pnpm build && pnpm test && pnpm publish -r"
   },
   "devDependencies": {

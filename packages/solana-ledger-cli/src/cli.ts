@@ -5,10 +5,10 @@ import {
 } from '@ledgerhq/errors'
 import { logError, logDebug } from '@marinade.finance/ts-common'
 
-import { CLI_LEDGER_URL_PREFIX, LedgerWallet } from './ledger'
+import { LedgerWallet } from './ledger'
 
-import type { Wallet } from './ledger'
 import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
+import type { Wallet } from '@marinade.finance/solana-wallet-cli-utils'
 
 /**
  * Parsing provided argument as a ledger url.
@@ -87,5 +87,20 @@ export async function parseLedgerWallet(
     }
   }
 
+  return null
+}
+
+export async function parseTrezorWallet(
+  pathOrUrl: string,
+  logger?: LoggerPlaceholder
+): Promise<Wallet | null> {
+  pathOrUrl = pathOrUrl.trim()
+
+  if (pathOrUrl.startsWith(CLI_TREZOR_URL_PREFIX)) {
+    try {
+    } catch (e) {
+      throw e
+    }
+  }
   return null
 }
