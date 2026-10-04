@@ -1,0 +1,70 @@
+{
+  "name": "@marinade.finance/solana-hw-wallet",
+  "version": "1.0.0",
+  "description": "Solana hardware wallet (Ledger, Trezor) signing for Node.js CLI tools",
+  "license": "ISC",
+  "author": "Marinade.Finance",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:marinade-finance/ledger-utils.git"
+  },
+  "keywords": [
+    "solana",
+    "marinade.finance",
+    "blockchain",
+    "ledger",
+    "trezor",
+    "hardware-wallet",
+    "wallet",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "files": [
+    "dist/",
+    "!dist/__tests__",
+    "!dist/test-utils",
+    "!dist/emulator",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "test": "pnpm jest --config ../../jest.config.js --testPathPatterns=\"$(pwd)\"",
+    "test:emulator": "tsc --build && node --test dist/emulator/trezor.e2e.js"
+  },
+  "dependencies": {
+    "@solana/keys": "^8.4.0",
+    "@solana/offchain-messages": "^8.4.0"
+  },
+  "devDependencies": {
+    "@ledgerhq/hw-app-solana": "^7.12.0",
+    "@ledgerhq/hw-transport": "^6.36.0",
+    "@ledgerhq/hw-transport-mocker": "^6.35.0",
+    "@ledgerhq/hw-transport-node-hid-noevents": "^6.36.0",
+    "@marinade.finance/ts-common": "^5.7.0",
+    "@solana/web3.js": "^1.98.4",
+    "@trezor/connect": "^10.0.1",
+    "tslib": "^2.8.1"
+  },
+  "peerDependencies": {
+    "@ledgerhq/hw-app-solana": "^7.12.0",
+    "@ledgerhq/hw-transport-node-hid-noevents": "^6.36.0",
+    "@marinade.finance/ts-common": "^5.7.0",
+    "@solana/web3.js": "^1.98.4",
+    "@trezor/connect": "^10.0.1"
+  },
+  "peerDependenciesMeta": {
+    "@ledgerhq/hw-app-solana": {
+      "optional": true
+    },
+    "@ledgerhq/hw-transport-node-hid-noevents": {
+      "optional": true
+    },
+    "@trezor/connect": {
+      "optional": true
+    }
+  }
+}

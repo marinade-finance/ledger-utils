@@ -1,8 +1,22 @@
 packages:
   - packages/*
 
+allowBuilds:
+  '@parcel/watcher': false
+  bufferutil: true
+  node-hid: true
+  unrs-resolver: true
+  usb: true
+  utf-8-validate: true
+
+peerDependencyRules:
+  allowedVersions:
+    # token-2022 0.9 (via @trezor/connect) peers sysvars ^5 but its kit ^6 peer ships sysvars 6
+    '@solana-program/token-2022>@solana/sysvars': '6'
+
 onlyBuiltDependencies:
   - bufferutil
   - node-hid
   - unrs-resolver
+  - usb
   - utf-8-validate

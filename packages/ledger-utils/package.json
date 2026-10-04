@@ -1,7 +1,7 @@
 {
   "name": "@marinade.finance/ledger-utils",
-  "version": "3.2.1",
-  "description": "Utility to interact with Solana Ledger from CLI",
+  "version": "4.0.0",
+  "description": "Deprecated, use @marinade.finance/solana-hw-wallet",
   "license": "ISC",
   "author": "Marinade.Finance",
   "repository": {
@@ -23,26 +23,22 @@
   "types": "dist/src/index.d.ts",
   "files": [
     "dist/",
-    "!dist/src/__tests__",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc --build",
-    "test": "pnpm jest --config ../../jest.config.js --testPathPattern=\"$(pwd)\""
+    "build": "tsc --build"
   },
   "dependencies": {
-    "@ledgerhq/errors": "^6.29.0",
-    "@ledgerhq/hw-app-solana": "^7.7.0",
-    "@ledgerhq/hw-transport-node-hid-noevents": "^6.31.0",
-    "@solana/keys": "^6.1.0",
-    "@solana/offchain-messages": "^6.1.0"
+    "@ledgerhq/hw-app-solana": "^7.12.0",
+    "@ledgerhq/hw-transport-node-hid-noevents": "^6.36.0",
+    "@marinade.finance/solana-hw-wallet": "workspace:^"
   },
   "devDependencies": {
-    "@marinade.finance/ts-common": "4.2.0",
+    "@marinade.finance/ts-common": "^5.7.0",
     "@solana/web3.js": "^1.98.4"
   },
   "peerDependencies": {
-    "@marinade.finance/ts-common": "^4.2.0",
+    "@marinade.finance/ts-common": "^5.7.0",
     "@solana/web3.js": "^1.98.4"
   }
 }

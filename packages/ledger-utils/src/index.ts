@@ -1,3 +1,2 @@
-export * from './ledger'
-export * from './cli'
-export * from './utils'
+export * from '@marinade.finance/solana-hw-wallet'
+export { parseHardwareWallet as parseLedgerWallet } from '@marinade.finance/solana-hw-wallet'
