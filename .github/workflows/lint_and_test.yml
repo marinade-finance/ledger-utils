@@ -22,8 +22,43 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          version: 9
+          version: 11
 
       - run: pnpm install
       - run: pnpm lint
+      - run: pnpm build
       - run: pnpm test
+
+  trezor-emulator:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+
+      - name: Start Trezor emulator environment
+        run: >-
+          docker run -d --name trezor-user-env --network host
+          -e SDL_VIDEODRIVER=dummy -e XDG_RUNTIME_DIR=/var/tmp
+          ghcr.io/trezor/trezor-user-env:0126ecbed6edc132a4210803707a66fd04add700
+
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 11
+
+      - run: pnpm install
+
+      - name: Wait for trezor-user-env
+        run: timeout 300 bash -c 'until curl -sf http://127.0.0.1:9002 > /dev/null; do sleep 2; done'
+
+      - run: pnpm --filter @marinade.finance/solana-hw-wallet test:emulator
+
+      - name: Emulator logs
+        if: failure()
+        run: docker logs trezor-user-env
