@@ -4,8 +4,10 @@ import { createInterface } from 'readline/promises'
 import { logInfo } from '@marinade.finance/ts-common'
 import { address } from '@solana/addresses'
 import { signatureBytes } from '@solana/keys'
+import { getOffchainMessageDecoder } from '@solana/offchain-messages'
 
 import { resolveDevice } from './discovery'
+import { signEach } from './signer'
 import {
   WalletType,
   formatDerivationPath,
@@ -15,7 +17,7 @@ import {
 import { toAddress } from './wallet'
 
 import type { HardwareDevice } from './discovery'
-import type { AddressInput } from './wallet'
+import type { AddressInput, SignatureDictionary, SignerConfig } from './wallet'
 import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
 import type { Address } from '@solana/addresses'
 import type { SignatureBytes } from '@solana/keys'
@@ -129,6 +131,43 @@ export class TrezorWallet {
       }),
     )
     return signatureBytes(Buffer.from(signature, 'hex'))
+  }
+
+  // kit TransactionPartialSigner
+  public async signTransactions(
+    transactions: readonly { messageBytes: ArrayLike<number> }[],
+    config?: SignerConfig,
+  ): Promise<readonly SignatureDictionary[]> {
+    return signEach(
+      this.address,
+      transactions.map(t => t.messageBytes),
+      config,
+      bytes => this.signTransactionMessage(bytes),
+    )
+  }
+
+  // kit MessagePartialSigner, the firmware builds off-chain message v1 itself from text and signers
+  public async signMessages(
+    messages: readonly { content: ArrayLike<number> }[],
+    config?: SignerConfig,
+  ): Promise<readonly SignatureDictionary[]> {
+    return signEach(
+      this.address,
+      messages.map(m => m.content),
+      config,
+      async bytes => {
+        const decoded = getOffchainMessageDecoder().decode(bytes)
+        if (decoded.version !== 1) {
+          throw new Error('Trezor signs off-chain messages of version 1 only')
+        }
+        return signatureBytes(
+          await this.signOffchainMessage(
+            decoded.content,
+            decoded.requiredSignatories.map(s => s.address),
+          ),
+        )
+      },
+    )
   }
 
   // off-chain message format v1 (firmware >= 2.12.4), verify with verifyOffchainMessageV1
