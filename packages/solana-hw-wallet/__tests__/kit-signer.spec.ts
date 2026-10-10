@@ -112,7 +112,7 @@ function randomLifetime() {
   }
 }
 
-function transactionMessage(feePayer: Address, version: 'legacy' | 0) {
+function transactionMessage(feePayer: Address, version: 'legacy' | 0 | 1) {
   return appendTransactionMessageInstruction(
     { programAddress: SYSTEM_PROGRAM },
     setTransactionMessageLifetimeUsingBlockhash(
@@ -243,6 +243,52 @@ describe('Ledger kit message signer', () => {
     expect(transport.signRequests.map(r => [r.ins, r.message])).toEqual([
       [0x07, Buffer.from(envelope.content)],
     ])
+  })
+})
+
+describe('transaction message version 1', () => {
+  const V1_ERROR =
+    'Transaction version 1 is not supported by the Ledger Solana app yet'
+
+  it('is refused for Ledger before reaching the device', async () => {
+    const transport = connectLedger()
+    const wallet = await LedgerWallet.instance('usb://ledger?key=0/0')
+    const v1 = compileTransaction(transactionMessage(wallet.address, 1))
+    expect(v1.messageBytes[0]).toEqual(0x81)
+
+    await expect(wallet.signTransactions([v1])).rejects.toThrow(V1_ERROR)
+    await expect(
+      wallet.signTransactionMessage(Uint8Array.from(v1.messageBytes)),
+    ).rejects.toThrow(V1_ERROR)
+    expect(transport.signRequests).toHaveLength(0)
+  })
+
+  it('is refused for Ledger before signing any transaction of the batch', async () => {
+    const transport = connectLedger()
+    const wallet = await LedgerWallet.instance('usb://ledger?key=0/0')
+
+    await expect(
+      wallet.signTransactions([
+        compileTransaction(transactionMessage(wallet.address, 0)),
+        compileTransaction(transactionMessage(wallet.address, 1)),
+      ]),
+    ).rejects.toThrow(V1_ERROR)
+    expect(transport.signRequests).toHaveLength(0)
+  })
+
+  it('is passed to Trezor unchanged, @trezor/connect decides', async () => {
+    fakeTrezor.seeds = [SEED_ALL]
+    const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
+    const v1 = compileTransaction(transactionMessage(wallet.address, 1))
+
+    const [signatures] = await wallet.signTransactions([v1])
+
+    expect(fakeTrezor.calls.at(-1)?.params.serializedTx).toEqual(
+      Buffer.from(v1.messageBytes).toString('hex'),
+    )
+    expect(await verifyBy(ALL_0_0, signatures![ALL_0_0], v1.messageBytes)).toBe(
+      true,
+    )
   })
 })
 

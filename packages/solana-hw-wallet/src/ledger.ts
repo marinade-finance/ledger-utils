@@ -95,6 +95,7 @@ export class LedgerWallet {
   public async signTransactionMessage(
     messageBytes: Uint8Array,
   ): Promise<SignatureBytes> {
+    assertLedgerTransactionVersion(messageBytes)
     return this.withApproval(async () => {
       const { signature } = await this.device.api.signTransaction(
         this.derivationPath,
@@ -109,11 +110,10 @@ export class LedgerWallet {
     transactions: readonly { messageBytes: ArrayLike<number> }[],
     config?: SignerConfig,
   ): Promise<readonly SignatureDictionary[]> {
-    return signEach(
-      this.address,
-      transactions.map(t => t.messageBytes),
-      config,
-      bytes => this.signTransactionMessage(bytes),
+    const messages = transactions.map(t => t.messageBytes)
+    messages.forEach(assertLedgerTransactionVersion)
+    return signEach(this.address, messages, config, bytes =>
+      this.signTransactionMessage(bytes),
     )
   }
 
@@ -177,6 +177,17 @@ export class LedgerWallet {
     } catch (e) {
       throw toLedgerError(e)
     }
+  }
+}
+
+// the Solana app parses a v1 message as v0 and fails with 0x6a80, even with blind signing
+function assertLedgerTransactionVersion(messageBytes: ArrayLike<number>): void {
+  const prefix = messageBytes[0] ?? 0
+  if ((prefix & 0x80) !== 0 && (prefix & 0x7f) >= 1) {
+    throw new Error(
+      `Transaction version ${prefix & 0x7f} is not supported by the Ledger Solana app yet, ` +
+        'see https://github.com/LedgerHQ/app-solana/issues/248',
+    )
   }
 }
 
