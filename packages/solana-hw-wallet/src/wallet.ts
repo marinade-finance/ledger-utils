@@ -1,3 +1,6 @@
+import { address } from '@solana/addresses'
+
+import type { Address } from '@solana/addresses'
 import type {
   PublicKey,
   Transaction,
@@ -17,6 +20,12 @@ export interface Wallet {
     txs: T[],
   ): Promise<T[]>
   publicKey: PublicKey
+}
+
+export type AddressInput = string | { toBase58(): string }
+
+export function toAddress(input: AddressInput): Address {
+  return address(typeof input === 'string' ? input : input.toBase58())
 }
 
 export function serializeTransactionMessage(

@@ -1,3 +1,4 @@
+import { getAddressEncoder, getAddressFromPublicKey } from '@solana/addresses'
 import {
   SOLANA_ERROR__OFFCHAIN_MESSAGE__MAXIMUM_LENGTH_EXCEEDED,
   isSolanaError,
@@ -16,10 +17,11 @@ import {
   offchainMessageContentUtf8Of1232BytesMax,
   offchainMessageContentUtf8Of65535BytesMax,
 } from '@solana/offchain-messages'
-import { PublicKey } from '@solana/web3.js'
 
+import { toAddress } from './wallet'
+
+import type { AddressInput } from './wallet'
 import type { OffchainMessageV0 } from '@solana/offchain-messages'
-import type { Keypair } from '@solana/web3.js'
 
 /**
  * Formats a text message into Solana off-chain message format v0 (signed by Ledger).
@@ -32,14 +34,14 @@ import type { Keypair } from '@solana/web3.js'
 export function formatOffchainMessage(
   message: string,
   applicationDomain: string,
-  signerPublicKey: PublicKey,
+  signerPublicKey: AddressInput,
 ): Buffer {
   const encode = (offchainMessage: OffchainMessageV0) =>
     Buffer.from(getOffchainMessageV0Encoder().encode(offchainMessage))
   const base = {
     version: 0,
     applicationDomain: offchainMessageApplicationDomain(applicationDomain),
-    requiredSignatories: [{ address: signerPublicKey.toBase58() as never }],
+    requiredSignatories: [{ address: toAddress(signerPublicKey) }],
   } as const
 
   try {
@@ -71,44 +73,50 @@ export function formatOffchainMessage(
 // off-chain message format v1 as signed by Trezor, the format has no application domain
 export function formatOffchainMessageV1(
   message: string,
-  signers: PublicKey[],
+  signers: AddressInput[],
 ): Buffer {
-  const sortedSigners = [...signers].sort((a, b) =>
-    Buffer.compare(a.toBuffer(), b.toBuffer()),
-  )
+  const encoder = getAddressEncoder()
+  const sortedSigners = signers
+    .map(s => toAddress(s))
+    .sort((a, b) =>
+      Buffer.compare(
+        Buffer.from(encoder.encode(a)),
+        Buffer.from(encoder.encode(b)),
+      ),
+    )
   return Buffer.from(
     getOffchainMessageV1Encoder().encode({
       version: 1,
       content: message,
-      requiredSignatories: sortedSigners.map(s => ({
-        address: s.toBase58() as never,
-      })),
+      requiredSignatories: sortedSigners.map(address => ({ address })),
     }),
   )
 }
 
 /**
- * Signs a Solana off-chain message (v0) with a file-based Keypair.
+ * Signs a Solana off-chain message (v0) with a software key.
  * Produces the same signature format as LedgerWallet.signOffchainMessage,
  * verifiable with verifyOffchainMessage.
  *
  * @param message the text message to sign
- * @param keypair the file-based Keypair
+ * @param keypair 64-byte secret key holder (e.g. web3.js Keypair) or a kit CryptoKeyPair
  * @param applicationDomain 32-byte application identifier as base58 string
  */
 export async function signOffchainMessage(
   message: string,
-  keypair: Keypair,
+  keypair: { secretKey: Uint8Array } | CryptoKeyPair,
   applicationDomain: string,
 ): Promise<Buffer> {
+  const keyPair =
+    'secretKey' in keypair
+      ? await createKeyPairFromBytes(keypair.secretKey)
+      : keypair
   const formatted = formatOffchainMessage(
     message,
     applicationDomain,
-    new PublicKey(keypair.publicKey),
+    await getAddressFromPublicKey(keyPair.publicKey),
   )
-  const { privateKey } = await createKeyPairFromBytes(keypair.secretKey)
-  const sig = await signBytes(privateKey, formatted)
-  return Buffer.from(sig)
+  return Buffer.from(await signBytes(keyPair.privateKey, formatted))
 }
 
 /**
@@ -123,7 +131,7 @@ export async function signOffchainMessage(
 export async function verifyOffchainMessage(
   message: string,
   signature: Buffer,
-  publicKey: PublicKey,
+  publicKey: AddressInput,
   applicationDomain: string,
 ): Promise<boolean> {
   return verifyBytes(
@@ -137,8 +145,8 @@ export async function verifyOffchainMessage(
 export async function verifyOffchainMessageV1(
   message: string,
   signature: Buffer,
-  publicKey: PublicKey,
-  signers: PublicKey[] = [publicKey],
+  publicKey: AddressInput,
+  signers: AddressInput[] = [publicKey],
 ): Promise<boolean> {
   return verifyBytes(
     formatOffchainMessageV1(message, signers),
@@ -150,11 +158,11 @@ export async function verifyOffchainMessageV1(
 async function verifyBytes(
   data: Uint8Array,
   signature: Buffer,
-  publicKey: PublicKey,
+  publicKey: AddressInput,
 ): Promise<boolean> {
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    new Uint8Array(publicKey.toBytes()),
+    new Uint8Array(getAddressEncoder().encode(toAddress(publicKey))),
     'Ed25519',
     true,
     ['verify'],
