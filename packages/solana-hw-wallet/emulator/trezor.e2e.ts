@@ -13,6 +13,7 @@ import TrezorConnect, { UI_EVENTS } from '@trezor/connect'
 
 import { verifyOffchainMessageV1 } from '../src/offchain'
 import { TrezorWallet, closeTrezorConnect } from '../src/trezor'
+import { toWeb3Wallet } from '../src/web3js'
 import {
   MNEMONIC_ALL,
   deriveKeypair,
@@ -167,7 +168,9 @@ void describe('TrezorWallet on firmware emulator', () => {
 
   void it('signs legacy and versioned transactions with the derived key', async () => {
     await withAutoConfirm(async () => {
-      const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
+      const wallet = await toWeb3Wallet(
+        await TrezorWallet.instance('usb://trezor?key=0/0'),
+      )
       assert.deepEqual(wallet.publicKey, ALL_0_0)
 
       const legacy = transferTx(wallet.publicKey)
@@ -197,7 +200,7 @@ void describe('TrezorWallet on firmware emulator', () => {
       const wallet = await TrezorWallet.instance(
         `usb://trezor/${ALL_BASE.toBase58()}?key=0/0`,
       )
-      assert.deepEqual(wallet.publicKey, ALL_0_0)
+      assert.equal(wallet.address, ALL_0_0.toBase58())
     })
   })
 

@@ -1,4 +1,6 @@
-import { PublicKey } from '@solana/web3.js'
+import { address } from '@solana/addresses'
+
+import type { Address } from '@solana/addresses'
 
 export enum WalletType {
   LEDGER = 'ledger',
@@ -19,7 +21,7 @@ const HARDENED_OFFSET = 0x80000000
 export type ParsedWalletUrl = {
   walletType: WalletType
   /** Agave semantics: pubkey at 44'/501' selecting the device; the pubkey at the derived path is accepted too */
-  walletId: PublicKey | undefined
+  walletId: Address | undefined
   /** Indexes after 44'/501', every index is hardened (SLIP-10 ed25519) */
   derivationPath: number[]
   /** true when `?key=` is provided with a value, an explicit path is never replaced by account search */
@@ -65,7 +67,7 @@ export function toHardenedPath(derivationPath: number[]): number[] {
 function parseWalletId(
   url: string,
   pathPart: string | undefined,
-): PublicKey | undefined {
+): Address | undefined {
   const [segment, ...rest] = (pathPart ?? '')
     .split('/')
     .filter(s => s.trim() !== '')
@@ -78,7 +80,7 @@ function parseWalletId(
     )
   }
   try {
-    return new PublicKey(segment.trim())
+    return address(segment.trim())
   } catch (e) {
     throw new Error(
       `Failed to parse wallet id from hardware wallet url "${url}". ` +

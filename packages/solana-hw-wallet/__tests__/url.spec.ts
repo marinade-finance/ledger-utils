@@ -1,5 +1,3 @@
-import { PublicKey } from '@solana/web3.js'
-
 import {
   WalletType,
   formatDerivationPath,
@@ -76,7 +74,7 @@ describe('parseWalletUrl', () => {
   ])('parses %s', (url, walletType, walletId, derivationPath, explicitKey) => {
     expect(parseWalletUrl(url)).toEqual({
       walletType,
-      walletId: walletId === undefined ? undefined : new PublicKey(walletId),
+      walletId,
       derivationPath,
       explicitKey,
     })

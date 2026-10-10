@@ -2,7 +2,8 @@ import { hostname } from 'os'
 import { createInterface } from 'readline/promises'
 
 import { logInfo } from '@marinade.finance/ts-common'
-import { PublicKey } from '@solana/web3.js'
+import { address } from '@solana/addresses'
+import { signatureBytes } from '@solana/keys'
 
 import { resolveDevice } from './discovery'
 import {
@@ -11,12 +12,13 @@ import {
   parseWalletUrl,
   toHardenedPath,
 } from './url'
-import { serializeTransactionMessage } from './wallet'
+import { toAddress } from './wallet'
 
 import type { HardwareDevice } from './discovery'
-import type { Wallet } from './wallet'
+import type { AddressInput } from './wallet'
 import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
-import type { Transaction, VersionedTransaction } from '@solana/web3.js'
+import type { Address } from '@solana/addresses'
+import type { SignatureBytes } from '@solana/keys'
 import type TrezorConnectInstance from '@trezor/connect'
 import type * as TrezorConnectModule from '@trezor/connect'
 import type { Device } from '@trezor/connect'
@@ -57,10 +59,10 @@ class TrezorDevice implements HardwareDevice {
     public readonly path: DevicePath,
   ) {}
 
-  async getPublicKey(
+  async getAddress(
     derivationPath: number[],
     showOnTrezor = false,
-  ): Promise<PublicKey> {
+  ): Promise<Address> {
     const result = unwrap(
       await this.connect.solanaGetPublicKey({
         device: { path: this.path },
@@ -68,11 +70,11 @@ class TrezorDevice implements HardwareDevice {
         showOnTrezor,
       }),
     )
-    return new PublicKey(result.publicKeyBase58)
+    return address(result.publicKeyBase58)
   }
 }
 
-export class TrezorWallet implements Wallet {
+export class TrezorWallet {
   // From url usb://trezor[/<pubkey>][?key=<derivation-path>] connects Trezor via '@trezor/connect'
   static async instance(
     trezorUrl = 'usb://trezor',
@@ -92,12 +94,11 @@ export class TrezorWallet implements Wallet {
         explicitKey: parsed.explicitKey,
         logger,
       })
-      const publicKey = await device.getPublicKey(derivationPath)
       return new TrezorWallet(
         current,
         device,
         derivationPath,
-        publicKey,
+        await device.getAddress(derivationPath),
         manifest,
         logger,
       )
@@ -108,7 +109,7 @@ export class TrezorWallet implements Wallet {
     private session: Session,
     private device: TrezorDevice,
     private readonly derivationIndexes: number[],
-    public readonly publicKey: PublicKey,
+    public readonly address: Address,
     private readonly manifest: TrezorManifest,
     public readonly logger: LoggerPlaceholder | undefined = undefined,
   ) {}
@@ -117,54 +118,43 @@ export class TrezorWallet implements Wallet {
     return 'm/' + formatDerivationPath(this.derivationIndexes)
   }
 
-  public async signTransaction<T extends Transaction | VersionedTransaction>(
-    tx: T,
-  ): Promise<T> {
+  public async signTransactionMessage(
+    messageBytes: Uint8Array,
+  ): Promise<SignatureBytes> {
     const { signature } = await this.withApproval(device =>
       device.connect.solanaSignTransaction({
         device: { path: device.path },
         path: toHardenedPath(this.derivationIndexes),
-        serializedTx: serializeTransactionMessage(tx).toString('hex'),
+        serializedTx: Buffer.from(messageBytes).toString('hex'),
       }),
     )
-    tx.addSignature(this.publicKey, Buffer.from(signature, 'hex'))
-    return tx
-  }
-
-  public async signAllTransactions<
-    T extends Transaction | VersionedTransaction,
-  >(txs: T[]): Promise<T[]> {
-    const signedTxs: T[] = []
-    for (const tx of txs) {
-      signedTxs.push(await this.signTransaction(tx))
-    }
-    return signedTxs
+    return signatureBytes(Buffer.from(signature, 'hex'))
   }
 
   // off-chain message format v1 (firmware >= 2.12.4), verify with verifyOffchainMessageV1
   public async signOffchainMessage(
     message: string,
-    signers?: PublicKey[],
+    signers?: AddressInput[],
   ): Promise<Buffer> {
     const { signature } = await this.withApproval(device =>
       device.connect.solanaSignMessage({
         device: { path: device.path },
         path: toHardenedPath(this.derivationIndexes),
         message,
-        signers: signers?.map(s => s.toBase58()),
+        signers: signers?.map(s => toAddress(s)),
       }),
     )
     return Buffer.from(signature, 'hex')
   }
 
   // Solana CLI --confirm-key: user verifies the address shown on the device
-  public async confirmPublicKey(): Promise<PublicKey> {
+  public async confirmPublicKey(): Promise<Address> {
     logInfo(
       this.logger,
       `Confirm the address on Trezor hardware wallet ${this.derivationPath}`,
     )
     return this.withDevice(device =>
-      device.getPublicKey(this.derivationIndexes, true),
+      device.getAddress(this.derivationIndexes, true),
     )
   }
 
@@ -176,7 +166,7 @@ export class TrezorWallet implements Wallet {
         this.logger,
         `Waiting for your approval on Trezor hardware wallet ${
           this.derivationPath
-        } [[${this.publicKey.toBase58()}]]`,
+        } [[${this.address}]]`,
       )
       const result = unwrap(await action(device))
       logInfo(this.logger, '✅ Approved')
@@ -192,7 +182,7 @@ export class TrezorWallet implements Wallet {
         const { device } = await resolveDevice({
           walletType: WalletType.TREZOR,
           devices: current.devices,
-          walletId: this.publicKey,
+          walletId: this.address,
           derivationPath: this.derivationIndexes,
           explicitKey: true,
           logger: this.logger,

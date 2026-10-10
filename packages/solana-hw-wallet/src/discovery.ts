@@ -8,10 +8,10 @@ import {
 
 import type { WalletType } from './url'
 import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
-import type { PublicKey } from '@solana/web3.js'
+import type { Address } from '@solana/addresses'
 
 export interface HardwareDevice {
-  getPublicKey(derivationPath: number[]): Promise<PublicKey>
+  getAddress(derivationPath: number[]): Promise<Address>
 }
 
 export async function resolveDevice<D extends HardwareDevice>({
@@ -24,7 +24,7 @@ export async function resolveDevice<D extends HardwareDevice>({
 }: {
   walletType: WalletType
   devices: D[]
-  walletId: PublicKey | undefined
+  walletId: Address | undefined
   derivationPath: number[]
   explicitKey: boolean
   logger: LoggerPlaceholder | undefined
@@ -36,10 +36,10 @@ export async function resolveDevice<D extends HardwareDevice>({
 
   if (walletId === undefined) {
     if (devices.length > 1) {
-      const ids = await Promise.all(devices.map(d => d.getPublicKey([])))
+      const ids = await Promise.all(devices.map(d => d.getAddress([])))
       throw new Error(
         `Multiple ${walletType} devices found, select one by wallet id: ` +
-          ids.map(id => `usb://${walletType}/${id.toBase58()}`).join(', '),
+          ids.map(id => `usb://${walletType}/${id}`).join(', '),
       )
     }
     return { device: firstDevice, derivationPath }
@@ -48,12 +48,12 @@ export async function resolveDevice<D extends HardwareDevice>({
   const deviceErrors: unknown[] = []
   for (const device of devices) {
     try {
-      if ((await device.getPublicKey([])).equals(walletId)) {
+      if ((await device.getAddress([])) === walletId) {
         return { device, derivationPath }
       }
       if (
         derivationPath.length > 0 &&
-        (await device.getPublicKey(derivationPath)).equals(walletId)
+        (await device.getAddress(derivationPath)) === walletId
       ) {
         return { device, derivationPath }
       }
@@ -79,7 +79,7 @@ export async function resolveDevice<D extends HardwareDevice>({
     throw deviceErrors[0]
   }
   throw new Error(
-    `No ${walletType} device provides pubkey ${walletId.toBase58()} ` +
+    `No ${walletType} device provides pubkey ${walletId} ` +
       `as wallet id (${formatDerivationPath([])}) nor at derivation path ${formatDerivationPath(derivationPath)}`,
   )
 }
@@ -91,13 +91,13 @@ async function searchDerivationPath<D extends HardwareDevice>({
   logger,
 }: {
   devices: D[]
-  walletId: PublicKey
+  walletId: Address
   derivationPath: number[]
   logger: LoggerPlaceholder | undefined
 }): Promise<{ device: D; derivationPath: number[] } | null> {
   logInfo(
     logger,
-    `Public key ${walletId.toBase58()} has not been found at derivation path ` +
+    `Public key ${walletId} has not been found at derivation path ` +
       `${formatDerivationPath(derivationPath)}. Going to search, it will take a while...`,
   )
   const { depth, wide } = getHeuristicDepthAndWide(derivationPath)
@@ -106,16 +106,16 @@ async function searchDerivationPath<D extends HardwareDevice>({
   )
   for (const device of devices) {
     for (const combination of combinations) {
-      let pubkey: PublicKey
+      let pubkey: Address
       try {
-        pubkey = await device.getPublicKey(combination)
+        pubkey = await device.getAddress(combination)
       } catch {
         break
       }
-      if (pubkey.equals(walletId)) {
+      if (pubkey === walletId) {
         logInfo(
           logger,
-          `For public key ${walletId.toBase58()} has been found derivation path ${formatDerivationPath(combination)}`,
+          `For public key ${walletId} has been found derivation path ${formatDerivationPath(combination)}`,
         )
         return { device, derivationPath: combination }
       }
