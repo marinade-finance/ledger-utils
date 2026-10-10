@@ -57,8 +57,12 @@ function transferTx(from: PublicKey): Transaction {
 
 describe('LedgerWallet', () => {
   it('derives keys matching Trezor firmware fixtures', () => {
-    expect(deriveKeypair(SEED_ALL, [44, 501]).publicKey).toEqual(ALL_BASE)
-    expect(deriveKeypair(SEED_ALL, [44, 501, 0, 0]).publicKey).toEqual(ALL_0_0)
+    expect(new PublicKey(deriveKeypair(SEED_ALL, [44, 501]).publicKey)).toEqual(
+      ALL_BASE,
+    )
+    expect(
+      new PublicKey(deriveKeypair(SEED_ALL, [44, 501, 0, 0]).publicKey),
+    ).toEqual(ALL_0_0)
   })
 
   it('uses first device and default path for usb://ledger', async () => {
@@ -79,7 +83,7 @@ describe('LedgerWallet', () => {
     connectLedgers(SEED_OTHER, SEED_ALL)
     await expect(LedgerWallet.instance('usb://ledger?key=0/0')).rejects.toThrow(
       'Multiple ledger devices found, select one by wallet id: ' +
-        `usb://ledger/${deriveKeypair(SEED_OTHER, [44, 501]).publicKey.toBase58()}, ` +
+        `usb://ledger/${deriveKeypair(SEED_OTHER, [44, 501]).address}, ` +
         `usb://ledger/${ALL_BASE.toBase58()}`,
     )
   })
@@ -121,7 +125,9 @@ describe('LedgerWallet', () => {
 
   it('searches the derivation path when only the pubkey is provided', async () => {
     connectLedgers(SEED_OTHER, SEED_ALL)
-    const target = deriveKeypair(SEED_ALL, [44, 501, 3, 1]).publicKey
+    const target = new PublicKey(
+      deriveKeypair(SEED_ALL, [44, 501, 3, 1]).publicKey,
+    )
     const wallet = await LedgerWallet.instance(
       `usb://ledger/${target.toBase58()}`,
     )

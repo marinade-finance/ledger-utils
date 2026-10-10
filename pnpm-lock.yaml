@@ -63,6 +63,9 @@ importers:
 
   packages/solana-hw-wallet:
     dependencies:
+      '@solana/addresses':
+        specifier: ^8.4.0
+        version: 8.4.0(typescript@5.9.3)
       '@solana/errors':
         specifier: ^8.4.0
         version: 8.4.0(typescript@5.9.3)

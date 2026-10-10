@@ -115,7 +115,9 @@ describe('TrezorWallet', () => {
 
   it('searches the derivation path when only the pubkey is provided', async () => {
     connectTrezors(SEED_ALL)
-    const target = deriveKeypair(SEED_ALL, [44, 501, 2]).publicKey
+    const target = new PublicKey(
+      deriveKeypair(SEED_ALL, [44, 501, 2]).publicKey,
+    )
     const wallet = await TrezorWallet.instance(
       `usb://trezor/${target.toBase58()}`,
     )

@@ -1,4 +1,4 @@
-import { PublicKey } from '@solana/web3.js'
+import { address, getAddressEncoder } from '@solana/addresses'
 
 import { deriveKeypair, signEd25519 } from './slip10'
 
@@ -75,10 +75,7 @@ export class FakeTrezorConnect {
     path: number[]
   }) {
     return this.respond('solanaGetPublicKey', params, seed => ({
-      publicKeyBase58: deriveKeypair(
-        seed,
-        unharden(params.path),
-      ).publicKey.toBase58(),
+      publicKeyBase58: deriveKeypair(seed, unharden(params.path)).address,
     }))
   }
 
@@ -103,9 +100,9 @@ export class FakeTrezorConnect {
   }) {
     return this.respond('solanaSignMessage', params, seed => {
       const keypair = deriveKeypair(seed, unharden(params.path))
-      const signers = (params.signers ?? [keypair.publicKey.toBase58()]).map(
-        s => new PublicKey(s).toBuffer(),
-      )
+      const signers = (params.signers ?? [keypair.address])
+        .map(s => Buffer.from(getAddressEncoder().encode(address(s))))
+        .sort((a, b) => Buffer.compare(a, b))
       // OCMS v1 envelope: 0xff "solana offchain" version=1 signers-count signers message
       const signedData = Buffer.concat([
         Buffer.from([0xff]),

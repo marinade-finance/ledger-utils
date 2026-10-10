@@ -36,6 +36,7 @@
     "test:emulator": "tsc --build && node --test dist/emulator/trezor.e2e.js"
   },
   "dependencies": {
+    "@solana/addresses": "^8.4.0",
     "@solana/errors": "^8.4.0",
     "@solana/keys": "^8.4.0",
     "@solana/offchain-messages": "^8.4.0"

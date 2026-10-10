@@ -42,7 +42,7 @@ export class FakeLedgerTransport extends Transport {
         this.displayedPaths.push(path)
       }
       return Buffer.concat([
-        deriveKeypair(this.seed, path).publicKey.toBuffer(),
+        deriveKeypair(this.seed, path).publicKey,
         statusWord(0x9000),
       ])
     }
