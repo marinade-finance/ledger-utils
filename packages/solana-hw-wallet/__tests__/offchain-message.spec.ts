@@ -1,3 +1,5 @@
+import { address, getAddressFromPublicKey } from '@solana/addresses'
+import { generateKeyPair } from '@solana/keys'
 import { Keypair, PublicKey } from '@solana/web3.js'
 
 import {
@@ -285,5 +287,49 @@ describe('off-chain message v1 against Trezor firmware fixtures', () => {
         APP_DOMAIN,
       ),
     ).toBe(false)
+  })
+})
+
+describe('off-chain helpers with kit types', () => {
+  const signer = address('14CCvQzQzHCVgZM3j9soPnXuJXh1RmCfwLVUcdfbZVBS')
+  const coSigner = address('7v91N7iZ9mNicL8WfG6cgSCKyRXydQjLh6UYBWwm6y1Q')
+
+  it('formats v1 from addresses the same as from PublicKeys, signers sorted by bytes', () => {
+    const fromPublicKeys = formatOffchainMessageV1('kit', [
+      new PublicKey(signer),
+      new PublicKey(coSigner),
+    ])
+    expect(formatOffchainMessageV1('kit', [coSigner, signer])).toEqual(
+      fromPublicKeys,
+    )
+    expect(formatOffchainMessageV1('kit', [signer, coSigner])).toEqual(
+      fromPublicKeys,
+    )
+    expect(formatOffchainMessage('kit', APP_DOMAIN, signer)).toEqual(
+      formatOffchainMessage('kit', APP_DOMAIN, new PublicKey(signer)),
+    )
+  })
+
+  it('signs with a kit CryptoKeyPair and verifies by address', async () => {
+    const keyPair = await generateKeyPair()
+    const signerAddress = await getAddressFromPublicKey(keyPair.publicKey)
+
+    const signature = await signOffchainMessage('kit', keyPair, APP_DOMAIN)
+
+    expect(
+      await verifyOffchainMessage('kit', signature, signerAddress, APP_DOMAIN),
+    ).toBe(true)
+  })
+
+  it('signs with raw secret key bytes as with a web3.js Keypair', async () => {
+    const keypair = Keypair.generate()
+
+    expect(
+      await signOffchainMessage(
+        'kit',
+        { secretKey: keypair.secretKey },
+        APP_DOMAIN,
+      ),
+    ).toEqual(await signOffchainMessage('kit', keypair, APP_DOMAIN))
   })
 })
