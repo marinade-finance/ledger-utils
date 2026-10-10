@@ -68,6 +68,9 @@
     "@ledgerhq/hw-transport-node-hid-noevents": {
       "optional": true
     },
+    "@solana/web3.js": {
+      "optional": true
+    },
     "@trezor/connect": {
       "optional": true
     }
