@@ -4,11 +4,11 @@
 
 Ledger and Trezor signing for Node.js Solana CLI tools.
 A wallet is selected by the same `usb://` url as in the [Solana CLI](https://docs.anza.xyz/cli/intro/#keypair-url)
-and is returned as an Anchor compatible [`Wallet`](./src/wallet.ts).
+and works as a [`@solana/kit`](https://github.com/anza-xyz/kit) signer or as an Anchor compatible [`Wallet`](./src/wallet.ts) of `@solana/web3.js` 1.x.
 
 ## Installation
 
-Vendor libraries are optional peer dependencies. Install only the ones for the devices you use.
+Vendor libraries and `@solana/web3.js` are optional peer dependencies. Install only the ones you use.
 
 ```sh
 pnpm add @marinade.finance/solana-hw-wallet
@@ -16,11 +16,26 @@ pnpm add @marinade.finance/solana-hw-wallet
 pnpm add @ledgerhq/hw-app-solana @ledgerhq/hw-transport-node-hid-noevents
 # Trezor
 pnpm add @trezor/connect
+# Anchor compatible Wallet (parseHardwareWallet, toWeb3Wallet)
+pnpm add @solana/web3.js
 ```
 
 `@trezor/connect` is an ES module, it is loaded through `require(esm)` that needs Node.js 20.19+ or 22.12+.
+The type declarations reference `@solana/web3.js`; a kit-only project without it compiles with `skipLibCheck: true`.
 
 ## Usage
+
+With `@solana/kit` the wallet is a `TransactionPartialSigner` and `MessagePartialSigner`:
+
+```ts
+import { openHardwareWallet } from '@marinade.finance/solana-hw-wallet'
+
+const signer = await openHardwareWallet('usb://ledger?key=0/0', logger)
+const message = setTransactionMessageFeePayerSigner(signer, transactionMessage)
+const transaction = await signTransactionMessageWithSigners(message)
+```
+
+With `@solana/web3.js` 1.x:
 
 ```ts
 import { parseHardwareWallet } from '@marinade.finance/solana-hw-wallet'
@@ -32,8 +47,11 @@ if (wallet === null) {
 await wallet.signTransaction(tx)
 ```
 
+Version 1 transactions are not signed yet: the Ledger Solana app and the Trezor firmware do not support them, and `@solana/web3.js` 1.x cannot serialize them.
+
 `LedgerWallet` and `TrezorWallet` also provide `signOffchainMessage` and `confirmPublicKey` (address shown on the device, `--confirm-key` in Solana CLI).
 Ledger signs off-chain message format v0 (check with `verifyOffchainMessage`), Trezor supports only format v1 (check with `verifyOffchainMessageV1`).
+As a kit `MessagePartialSigner` Ledger signs off-chain messages v0 and v1, Trezor only v1.
 
 ## Wallet url
 
