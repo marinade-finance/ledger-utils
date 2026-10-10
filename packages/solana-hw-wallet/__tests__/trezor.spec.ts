@@ -7,6 +7,7 @@ import {
   VersionedTransaction,
 } from '@solana/web3.js'
 
+import { toWeb3Wallet } from '../src/web3js'
 import {
   MNEMONIC_ALL,
   deriveKeypair,
@@ -70,7 +71,7 @@ describe('TrezorWallet', () => {
   it('initializes connect for node with manifest and pending transport', async () => {
     connectTrezors(SEED_ALL)
     const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
-    expect(wallet.publicKey).toEqual(ALL_0_0)
+    expect(wallet.address).toEqual(ALL_0_0.toBase58())
     expect(wallet.derivationPath).toEqual("m/44'/501'/0'/0'")
     expect(fakeTrezor.initSettings).toMatchObject({
       manifest: { appName: '@marinade.finance/solana-hw-wallet' },
@@ -91,10 +92,11 @@ describe('TrezorWallet', () => {
     const wallet = await TrezorWallet.instance(
       `usb://trezor/${ALL_BASE.toBase58()}?key=0/0`,
     )
-    expect(wallet.publicKey).toEqual(ALL_0_0)
+    expect(wallet.address).toEqual(ALL_0_0.toBase58())
 
-    const tx = transferTx(wallet.publicKey)
-    await wallet.signTransaction(tx)
+    const web3Wallet = await toWeb3Wallet(wallet)
+    const tx = transferTx(web3Wallet.publicKey)
+    await web3Wallet.signTransaction(tx)
     expect(tx.verifySignatures()).toBe(true)
     expect(fakeTrezor.calls.at(-1)).toEqual({
       method: 'solanaSignTransaction',
@@ -126,7 +128,9 @@ describe('TrezorWallet', () => {
 
   it('signs versioned transaction message', async () => {
     connectTrezors(SEED_ALL)
-    const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
+    const wallet = await toWeb3Wallet(
+      await TrezorWallet.instance('usb://trezor?key=0/0'),
+    )
     const tx = new VersionedTransaction(
       new TransactionMessage({
         payerKey: wallet.publicKey,
@@ -148,7 +152,7 @@ describe('TrezorWallet', () => {
 
     const signature = await wallet.signOffchainMessage('Hello, Trezor!')
     const coSigned = await wallet.signOffchainMessage('co-signed', [
-      wallet.publicKey,
+      wallet.address,
       coSigner,
     ])
 
@@ -156,8 +160,8 @@ describe('TrezorWallet', () => {
       'f2580d7f82bf2f9737925e7817d5b04cfe8b5e9b1f3c138517a9c55f2bb1f95524db937ec2a1dfebf67a1dc3ab27ef80629854ee2af5cb0ceb40568bc1bdb503',
     )
     expect(
-      await verifyOffchainMessageV1('co-signed', coSigned, wallet.publicKey, [
-        wallet.publicKey,
+      await verifyOffchainMessageV1('co-signed', coSigned, wallet.address, [
+        wallet.address,
         coSigner,
       ]),
     ).toBe(true)
@@ -166,13 +170,15 @@ describe('TrezorWallet', () => {
   it('shows the address on device to confirm the key', async () => {
     connectTrezors(SEED_ALL)
     const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
-    expect(await wallet.confirmPublicKey()).toEqual(ALL_0_0)
+    expect(await wallet.confirmPublicKey()).toEqual(ALL_0_0.toBase58())
     expect(fakeTrezor.calls.at(-1)?.params.showOnTrezor).toBe(true)
   })
 
   it('reports failure from connect', async () => {
     connectTrezors(SEED_ALL)
-    const wallet = await TrezorWallet.instance('usb://trezor')
+    const wallet = await toWeb3Wallet(
+      await TrezorWallet.instance('usb://trezor'),
+    )
     fakeTrezor.failure = {
       message: 'Cancelled',
       code: 'Failure_ActionCancelled',
@@ -207,8 +213,10 @@ describe('TrezorWallet', () => {
 
   it('reopens connect and re-identifies the device after close', async () => {
     connectTrezors(SEED_OTHER, SEED_ALL)
-    const wallet = await TrezorWallet.instance(
-      `usb://trezor/${ALL_BASE.toBase58()}?key=0/0`,
+    const wallet = await toWeb3Wallet(
+      await TrezorWallet.instance(
+        `usb://trezor/${ALL_BASE.toBase58()}?key=0/0`,
+      ),
     )
     await closeTrezorConnect()
     connectTrezors(SEED_ALL, SEED_OTHER)
@@ -225,7 +233,9 @@ describe('TrezorWallet', () => {
 
   it('refuses to sign when the device was swapped after close', async () => {
     connectTrezors(SEED_ALL)
-    const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
+    const wallet = await toWeb3Wallet(
+      await TrezorWallet.instance('usb://trezor?key=0/0'),
+    )
     await closeTrezorConnect()
     connectTrezors(SEED_OTHER)
 

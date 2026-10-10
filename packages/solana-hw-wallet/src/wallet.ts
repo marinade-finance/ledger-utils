@@ -1,5 +1,7 @@
 import { address } from '@solana/addresses'
 
+import type { LedgerWallet } from './ledger'
+import type { TrezorWallet } from './trezor'
 import type { Address } from '@solana/addresses'
 import type {
   PublicKey,
@@ -21,6 +23,8 @@ export interface Wallet {
   ): Promise<T[]>
   publicKey: PublicKey
 }
+
+export type HardwareWallet = LedgerWallet | TrezorWallet
 
 export type AddressInput = string | { toBase58(): string }
 
