@@ -1,4 +1,8 @@
 import {
+  SOLANA_ERROR__OFFCHAIN_MESSAGE__MAXIMUM_LENGTH_EXCEEDED,
+  isSolanaError,
+} from '@solana/errors'
+import {
   createKeyPairFromBytes,
   signBytes,
   signatureBytes,
@@ -14,10 +18,8 @@ import {
 } from '@solana/offchain-messages'
 import { PublicKey } from '@solana/web3.js'
 
+import type { OffchainMessageV0 } from '@solana/offchain-messages'
 import type { Keypair } from '@solana/web3.js'
-
-// 1232 B limit covers the whole v0 message, single signer preamble takes 85 B
-const MAX_SIGNABLE_CONTENT_BYTES = 1232 - 85
 
 /**
  * Formats a text message into Solana off-chain message format v0 (signed by Ledger).
@@ -32,42 +34,37 @@ export function formatOffchainMessage(
   applicationDomain: string,
   signerPublicKey: PublicKey,
 ): Buffer {
-  const encoder = getOffchainMessageV0Encoder()
-  const domain = offchainMessageApplicationDomain(applicationDomain)
-  const signatories = [
-    { address: signerPublicKey.toBase58() as never },
-  ] as const
+  const encode = (offchainMessage: OffchainMessageV0) =>
+    Buffer.from(getOffchainMessageV0Encoder().encode(offchainMessage))
+  const base = {
+    version: 0,
+    applicationDomain: offchainMessageApplicationDomain(applicationDomain),
+    requiredSignatories: [{ address: signerPublicKey.toBase58() as never }],
+  } as const
 
-  const messageBytes = Buffer.from(message, 'utf-8')
-  const isRestrictedAscii = /^[\x20-\x7e]*$/.test(message)
-
-  if (isRestrictedAscii && messageBytes.length <= MAX_SIGNABLE_CONTENT_BYTES) {
-    return Buffer.from(
-      encoder.encode({
-        version: 0,
-        applicationDomain: domain,
-        content: offchainMessageContentRestrictedAsciiOf1232BytesMax(message),
-        requiredSignatories: signatories,
-      }),
+  try {
+    return encode(
+      /^[\x20-\x7e]*$/.test(message)
+        ? {
+            ...base,
+            content:
+              offchainMessageContentRestrictedAsciiOf1232BytesMax(message),
+          }
+        : {
+            ...base,
+            content: offchainMessageContentUtf8Of1232BytesMax(message),
+          },
     )
-  } else if (messageBytes.length <= MAX_SIGNABLE_CONTENT_BYTES) {
-    return Buffer.from(
-      encoder.encode({
-        version: 0,
-        applicationDomain: domain,
-        content: offchainMessageContentUtf8Of1232BytesMax(message),
-        requiredSignatories: signatories,
-      }),
-    )
-  } else {
-    return Buffer.from(
-      encoder.encode({
-        version: 0,
-        applicationDomain: domain,
-        content: offchainMessageContentUtf8Of65535BytesMax(message),
-        requiredSignatories: signatories,
-      }),
-    )
+  } catch (e) {
+    if (
+      !isSolanaError(e, SOLANA_ERROR__OFFCHAIN_MESSAGE__MAXIMUM_LENGTH_EXCEEDED)
+    ) {
+      throw e
+    }
+    return encode({
+      ...base,
+      content: offchainMessageContentUtf8Of65535BytesMax(message),
+    })
   }
 }
 
