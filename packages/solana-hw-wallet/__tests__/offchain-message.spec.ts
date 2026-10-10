@@ -50,6 +50,13 @@ describe('formatOffchainMessage', () => {
     ).toBe(2)
     expect(
       formatOffchainMessage(
+        'ě'.repeat(573),
+        APP_DOMAIN,
+        signer.publicKey,
+      ).readUInt8(49),
+    ).toBe(1)
+    expect(
+      formatOffchainMessage(
         'ě'.repeat(574),
         APP_DOMAIN,
         signer.publicKey,
