@@ -46,6 +46,10 @@
     "@ledgerhq/hw-transport": "^6.36.0",
     "@ledgerhq/hw-transport-node-hid-noevents": "^6.36.0",
     "@marinade.finance/ts-common": "^5.7.0",
+    "@solana/rpc-types": "^8.4.0",
+    "@solana/signers": "^8.4.0",
+    "@solana/transaction-messages": "^8.4.0",
+    "@solana/transactions": "^8.4.0",
     "@solana/web3.js": "^1.99.0",
     "@trezor/connect": "^10.0.1",
     "tslib": "^2.8.1"

@@ -3,6 +3,7 @@ import { address } from '@solana/addresses'
 import type { LedgerWallet } from './ledger'
 import type { TrezorWallet } from './trezor'
 import type { Address } from '@solana/addresses'
+import type { SignatureBytes } from '@solana/keys'
 import type {
   PublicKey,
   Transaction,
@@ -25,6 +26,10 @@ export interface Wallet {
 }
 
 export type HardwareWallet = LedgerWallet | TrezorWallet
+
+// structurally the kit @solana/signers SignatureDictionary and signer config
+export type SignatureDictionary = Readonly<Record<Address, SignatureBytes>>
+export type SignerConfig = { abortSignal?: AbortSignal }
 
 export type AddressInput = string | { toBase58(): string }
 

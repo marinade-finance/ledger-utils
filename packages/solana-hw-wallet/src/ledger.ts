@@ -4,9 +4,11 @@ import { signatureBytes } from '@solana/keys'
 
 import { resolveDevice } from './discovery'
 import { formatOffchainMessage } from './offchain'
+import { signEach } from './signer'
 import { WalletType, formatDerivationPath, parseWalletUrl } from './url'
 
 import type { HardwareDevice } from './discovery'
+import type { SignatureDictionary, SignerConfig } from './wallet'
 import type Solana from '@ledgerhq/hw-app-solana'
 import type Transport from '@ledgerhq/hw-transport'
 import type TransportNodeHid from '@ledgerhq/hw-transport-node-hid-noevents'
@@ -102,22 +104,51 @@ export class LedgerWallet {
     })
   }
 
+  // kit TransactionPartialSigner
+  public async signTransactions(
+    transactions: readonly { messageBytes: ArrayLike<number> }[],
+    config?: SignerConfig,
+  ): Promise<readonly SignatureDictionary[]> {
+    return signEach(
+      this.address,
+      transactions.map(t => t.messageBytes),
+      config,
+      bytes => this.signTransactionMessage(bytes),
+    )
+  }
+
+  // kit MessagePartialSigner, content is an encoded off-chain message the Solana app accepts (v0, v1)
+  public async signMessages(
+    messages: readonly { content: ArrayLike<number> }[],
+    config?: SignerConfig,
+  ): Promise<readonly SignatureDictionary[]> {
+    return signEach(
+      this.address,
+      messages.map(m => m.content),
+      config,
+      bytes => this.signOffchainBytes(bytes),
+    )
+  }
+
   // off-chain message format v0, applicationDomain is base58 of 32 bytes, verify with verifyOffchainMessage
   public async signOffchainMessage(
     message: string,
     applicationDomain: string,
   ): Promise<Buffer> {
-    const msgBuffer = formatOffchainMessage(
-      message,
-      applicationDomain,
-      this.address,
+    return Buffer.from(
+      await this.signOffchainBytes(
+        formatOffchainMessage(message, applicationDomain, this.address),
+      ),
     )
+  }
+
+  private async signOffchainBytes(bytes: Uint8Array): Promise<SignatureBytes> {
     return this.withApproval(async () => {
       const { signature } = await this.device.api.signOffchainMessage(
         this.derivationPath,
-        msgBuffer,
+        Buffer.from(bytes),
       )
-      return signature
+      return signatureBytes(signature)
     })
   }
 
