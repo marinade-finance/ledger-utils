@@ -1,3 +1,5 @@
+import { verifyOffchainMessage } from '@marinade.finance/web3js-kit'
+import { address } from '@solana/addresses'
 import {
   Keypair,
   MessageV1,
@@ -10,7 +12,6 @@ import {
 
 import { parseHardwareWallet } from '../src/cli'
 import { LedgerWallet } from '../src/ledger'
-import { verifyOffchainMessage } from '../src/offchain'
 import { toWeb3Wallet } from '../src/web3js'
 import { FakeLedgerTransport } from '../test-utils/fake-ledger'
 import {
@@ -219,7 +220,12 @@ describe('LedgerWallet', () => {
 
     expect(all!.signRequests.map(r => r.ins)).toEqual([0x07])
     expect(
-      await verifyOffchainMessage('web3', signature, ALL_0_0, domain),
+      await verifyOffchainMessage(
+        'web3',
+        signature,
+        address(ALL_0_0.toBase58()),
+        domain,
+      ),
     ).toBe(true)
   })
 

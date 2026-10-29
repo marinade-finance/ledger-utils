@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { after, before, describe, it } from 'node:test'
 
+import { verifyOffchainMessageV1 } from '@marinade.finance/web3js-kit'
+import { address } from '@solana/addresses'
 import {
   Keypair,
   PublicKey,
@@ -11,7 +13,6 @@ import {
 } from '@solana/web3.js'
 import TrezorConnect, { UI_EVENTS } from '@trezor/connect'
 
-import { verifyOffchainMessageV1 } from '../src/offchain'
 import { TrezorWallet, closeTrezorConnect } from '../src/trezor'
 import { toWeb3Wallet } from '../src/web3js'
 import {
@@ -209,11 +210,15 @@ void describe('TrezorWallet on firmware emulator', () => {
       const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
       const signature = await wallet.signOffchainMessage('Hello, Trezor!')
       assert.equal(
-        signature.toString('hex'),
+        Buffer.from(signature).toString('hex'),
         'f2580d7f82bf2f9737925e7817d5b04cfe8b5e9b1f3c138517a9c55f2bb1f95524db937ec2a1dfebf67a1dc3ab27ef80629854ee2af5cb0ceb40568bc1bdb503',
       )
       assert.ok(
-        await verifyOffchainMessageV1('Hello, Trezor!', signature, ALL_0_0),
+        await verifyOffchainMessageV1(
+          'Hello, Trezor!',
+          signature,
+          address(ALL_0_0.toBase58()),
+        ),
       )
     })
   })

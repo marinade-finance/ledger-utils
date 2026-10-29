@@ -1,5 +1,3 @@
-import { address } from '@solana/addresses'
-
 import type { Address } from '@solana/addresses'
 import type { SignatureBytes } from '@solana/keys'
 import type {
@@ -43,12 +41,6 @@ export interface HardwareWallet {
     config?: SignerConfig,
   ): Promise<readonly SignatureDictionary[]>
   confirmPublicKey(): Promise<Address>
-}
-
-export type AddressInput = string | { toBase58(): string }
-
-export function toAddress(input: AddressInput): Address {
-  return address(typeof input === 'string' ? input : input.toBase58())
 }
 
 export function serializeTransactionMessage(

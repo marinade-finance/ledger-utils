@@ -2,12 +2,12 @@ import { hostname } from 'os'
 import { createInterface } from 'readline/promises'
 
 import { doWithLock, logInfo } from '@marinade.finance/ts-common'
+import { formatOffchainMessageV1 } from '@marinade.finance/web3js-kit'
 import { address } from '@solana/addresses'
 import { signatureBytes } from '@solana/keys'
 import { getOffchainMessageDecoder } from '@solana/offchain-messages'
 
 import { resolveDevice } from './discovery'
-import { formatOffchainMessageV1 } from './offchain'
 import { assertTransactionMessageVersion, signEach } from './signer'
 import {
   WalletType,
@@ -15,11 +15,9 @@ import {
   parseWalletUrl,
   toHardenedPath,
 } from './url'
-import { toAddress } from './wallet'
 
 import type { HardwareDevice } from './discovery'
 import type {
-  AddressInput,
   HardwareWallet,
   SignatureDictionary,
   SignerConfig,
@@ -170,14 +168,16 @@ export class TrezorWallet implements HardwareWallet {
         }
         const signers = decoded.requiredSignatories.map(s => s.address)
         // the text decoder drops NUL and BOM, the firmware would sign other bytes
-        if (!formatOffchainMessageV1(decoded.content, signers).equals(bytes)) {
+        if (
+          !Buffer.from(
+            formatOffchainMessageV1(decoded.content, signers),
+          ).equals(bytes)
+        ) {
           throw new Error(
             'Trezor cannot sign this off-chain message, its text does not encode back to the same bytes',
           )
         }
-        return signatureBytes(
-          await this.signOffchainMessage(decoded.content, signers),
-        )
+        return this.signOffchainMessage(decoded.content, signers)
       },
     )
   }
@@ -185,17 +185,17 @@ export class TrezorWallet implements HardwareWallet {
   // off-chain message format v1 (firmware >= 2.12.4), verify with verifyOffchainMessageV1
   public async signOffchainMessage(
     message: string,
-    signers?: AddressInput[],
-  ): Promise<Buffer> {
+    signers?: Address[],
+  ): Promise<SignatureBytes> {
     const { signature } = await this.withApproval(device =>
       device.connect.solanaSignMessage({
         device: { path: device.path },
         path: toHardenedPath(this.derivationIndexes),
         message,
-        signers: signers?.map(s => toAddress(s)),
+        signers,
       }),
     )
-    return Buffer.from(signature, 'hex')
+    return signatureBytes(Buffer.from(signature, 'hex'))
   }
 
   // Solana CLI --confirm-key: user verifies the address shown on the device

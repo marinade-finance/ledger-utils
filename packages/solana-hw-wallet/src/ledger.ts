@@ -3,11 +3,11 @@ import {
   logInfo,
   scheduleOnExit,
 } from '@marinade.finance/ts-common'
+import { formatOffchainMessage } from '@marinade.finance/web3js-kit'
 import { getAddressDecoder } from '@solana/addresses'
 import { signatureBytes } from '@solana/keys'
 
 import { resolveDevice } from './discovery'
-import { formatOffchainMessage } from './offchain'
 import { assertTransactionMessageVersion, signEach } from './signer'
 import { WalletType, formatDerivationPath, parseWalletUrl } from './url'
 
@@ -150,11 +150,9 @@ export class LedgerWallet implements HardwareWallet {
   public async signOffchainMessage(
     message: string,
     applicationDomain: string,
-  ): Promise<Buffer> {
-    return Buffer.from(
-      await this.signOffchainBytes(
-        formatOffchainMessage(message, applicationDomain, this.address),
-      ),
+  ): Promise<SignatureBytes> {
+    return this.signOffchainBytes(
+      formatOffchainMessage(message, applicationDomain, this.address),
     )
   }
 

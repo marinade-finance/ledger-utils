@@ -52,7 +52,7 @@ await wallet.hardwareWallet.confirmPublicKey()
 Version 1 transactions are not signed yet: the Ledger Solana app and the Trezor firmware do not support them, so both wallets refuse them before any device call.
 
 `LedgerWallet` and `TrezorWallet` also provide `signOffchainMessage` and `confirmPublicKey` (address shown on the device, `--confirm-key` in Solana CLI).
-Ledger signs off-chain message format v0 (check with `verifyOffchainMessage`), Trezor supports only format v1 (check with `verifyOffchainMessageV1`).
+Ledger signs off-chain message format v0, Trezor supports only format v1. Check them with `verifyOffchainMessage` and `verifyOffchainMessageV1` from [`@marinade.finance/web3js-kit`](https://www.npmjs.com/package/@marinade.finance/web3js-kit).
 As a kit `MessagePartialSigner` Ledger signs off-chain messages v0 and v1, Trezor only v1.
 
 ## Wallet url

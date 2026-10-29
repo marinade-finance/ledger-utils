@@ -1,12 +1,12 @@
 import { randomBytes } from 'crypto'
 
+import { verifyOffchainMessage } from '@marinade.finance/web3js-kit'
 import {
   address,
   getAddressDecoder,
-  getAddressFromPublicKey,
   getPublicKeyFromAddress,
 } from '@solana/addresses'
-import { generateKeyPair, signatureBytes, verifySignature } from '@solana/keys'
+import { signatureBytes, verifySignature } from '@solana/keys'
 import { blockhash } from '@solana/rpc-types'
 import {
   appendTransactionMessageInstruction,
@@ -79,20 +79,14 @@ describe('without @solana/web3.js installed', () => {
     ).toBe(true)
   })
 
-  it('signs and verifies off-chain message with a kit key pair', async () => {
-    const { signOffchainMessage, verifyOffchainMessage } =
-      await import('../src')
-    const keyPair = await generateKeyPair()
+  it('signs off-chain message with the hardware wallet', async () => {
+    const { LedgerWallet } = await import('../src')
+    const wallet = await LedgerWallet.instance('usb://ledger?key=0/0')
 
-    const signature = await signOffchainMessage('kit', keyPair, APP_DOMAIN)
+    const signature = await wallet.signOffchainMessage('kit', APP_DOMAIN)
 
     expect(
-      await verifyOffchainMessage(
-        'kit',
-        signature,
-        await getAddressFromPublicKey(keyPair.publicKey),
-        APP_DOMAIN,
-      ),
+      await verifyOffchainMessage('kit', signature, ALL_0_0, APP_DOMAIN),
     ).toBe(true)
   })
 

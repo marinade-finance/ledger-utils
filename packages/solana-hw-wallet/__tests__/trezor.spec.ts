@@ -1,3 +1,5 @@
+import { verifyOffchainMessageV1 } from '@marinade.finance/web3js-kit'
+import { address } from '@solana/addresses'
 import {
   Keypair,
   PublicKey,
@@ -14,7 +16,6 @@ import {
   mnemonicToSeed,
 } from '../test-utils/slip10'
 
-import type * as OffchainModule from '../src/offchain'
 import type * as TrezorModule from '../src/trezor'
 import type * as FakeTrezorModule from '../test-utils/fake-trezor'
 import type { FakeTrezorConnect } from '../test-utils/fake-trezor'
@@ -35,14 +36,12 @@ const HARDENED_0_0 = [0x8000002c, 0x800001f5, 0x80000000, 0x80000000]
 
 let TrezorWallet: typeof TrezorModule.TrezorWallet
 let closeTrezorConnect: typeof TrezorModule.closeTrezorConnect
-let verifyOffchainMessageV1: typeof OffchainModule.verifyOffchainMessageV1
 let fakeTrezor: FakeTrezorConnect
 
 // module state of @trezor/connect init is per process, reset to connect a new set of devices
 beforeEach(async () => {
   jest.resetModules()
   ;({ TrezorWallet, closeTrezorConnect } = await import('../src/trezor'))
-  ;({ verifyOffchainMessageV1 } = await import('../src/offchain'))
   ;({ fakeTrezor } = await import('../test-utils/fake-trezor'))
 })
 
@@ -148,7 +147,7 @@ describe('TrezorWallet', () => {
   it('signs off-chain message verifiable as v1', async () => {
     connectTrezors(SEED_ALL)
     const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
-    const coSigner = Keypair.generate().publicKey
+    const coSigner = address(Keypair.generate().publicKey.toBase58())
 
     const signature = await wallet.signOffchainMessage('Hello, Trezor!')
     const coSigned = await wallet.signOffchainMessage('co-signed', [
@@ -156,7 +155,7 @@ describe('TrezorWallet', () => {
       coSigner,
     ])
 
-    expect(signature.toString('hex')).toEqual(
+    expect(Buffer.from(signature).toString('hex')).toEqual(
       'f2580d7f82bf2f9737925e7817d5b04cfe8b5e9b1f3c138517a9c55f2bb1f95524db937ec2a1dfebf67a1dc3ab27ef80629854ee2af5cb0ceb40568bc1bdb503',
     )
     expect(

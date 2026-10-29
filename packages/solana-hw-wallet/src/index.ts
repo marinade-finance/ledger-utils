@@ -1,7 +1,6 @@
 export * from './cli'
 export * from './discovery'
 export * from './ledger'
-export * from './offchain'
 export * from './trezor'
 export * from './url'
 export * from './wallet'
