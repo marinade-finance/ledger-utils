@@ -18,8 +18,8 @@ pnpm workspace. `packages/solana-hw-wallet` is the library (Ledger + Trezor sign
 ## Signing semantics
 
 - v1 transactions:
-  - The Ledger Solana app parses v1 as v0 and fails (LedgerHQ/app-solana#248), so `LedgerWallet` refuses v1 before any APDU.
-  - `@trezor/connect` 10 rejects v1 itself. Trezor firmware supports only legacy and v0 (trezor-firmware#7865).
+  - The Ledger Solana app parses v1 as v0 and fails (LedgerHQ/app-solana#248). Trezor firmware supports only legacy and v0 (trezor-firmware#7865).
+  - Both wallets refuse v1 before any device call via `assertTransactionMessageVersion` in `src/signer.ts`.
   - web3.js 1.99 can deserialize `MessageV1` but not serialize it.
 - kit `signMessages` gets the encoded off-chain message (signing domain + preamble + body):
   - Ledger passes the bytes unchanged. The app accepts v0 formats 0/1 and v1.

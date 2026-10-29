@@ -8,7 +8,7 @@ import { signatureBytes } from '@solana/keys'
 
 import { resolveDevice } from './discovery'
 import { formatOffchainMessage } from './offchain'
-import { signEach } from './signer'
+import { assertTransactionMessageVersion, signEach } from './signer'
 import { WalletType, formatDerivationPath, parseWalletUrl } from './url'
 
 import type { HardwareDevice } from './discovery'
@@ -27,6 +27,7 @@ import type { SignatureBytes } from '@solana/keys'
 
 const IN_LIB_TRANSPORT_CACHE: Map<string, Transport> = new Map()
 
+const LEDGER_APP = 'the Ledger Solana app'
 const LOCKED = 'Ledger device is locked. Please, unlock it first.'
 const APP_NOT_OPENED =
   'Solana application is not opened. Please, open the Solana app on the Ledger device first.'
@@ -110,7 +111,7 @@ export class LedgerWallet implements HardwareWallet {
   public async signTransactionMessage(
     messageBytes: Uint8Array,
   ): Promise<SignatureBytes> {
-    assertLedgerTransactionVersion(messageBytes)
+    assertTransactionMessageVersion(messageBytes, LEDGER_APP)
     return this.withApproval(async () => {
       const { signature } = await this.device.api.signTransaction(
         this.derivationPath,
@@ -126,7 +127,7 @@ export class LedgerWallet implements HardwareWallet {
     config?: SignerConfig,
   ): Promise<readonly SignatureDictionary[]> {
     const messages = transactions.map(t => t.messageBytes)
-    messages.forEach(assertLedgerTransactionVersion)
+    messages.forEach(m => assertTransactionMessageVersion(m, LEDGER_APP))
     return signEach(this.address, messages, config, bytes =>
       this.signTransactionMessage(bytes),
     )
@@ -194,17 +195,6 @@ export class LedgerWallet implements HardwareWallet {
         throw toLedgerError(e)
       }
     })
-  }
-}
-
-// the Solana app parses a v1 message as v0 and fails with 0x6a80, even with blind signing
-function assertLedgerTransactionVersion(messageBytes: ArrayLike<number>): void {
-  const prefix = messageBytes[0] ?? 0
-  if ((prefix & 0x80) !== 0 && (prefix & 0x7f) >= 1) {
-    throw new Error(
-      `Transaction version ${prefix & 0x7f} is not supported by the Ledger Solana app yet, ` +
-        'see https://github.com/LedgerHQ/app-solana/issues/248',
-    )
   }
 }
 

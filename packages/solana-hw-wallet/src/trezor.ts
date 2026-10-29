@@ -8,7 +8,7 @@ import { getOffchainMessageDecoder } from '@solana/offchain-messages'
 
 import { resolveDevice } from './discovery'
 import { formatOffchainMessageV1 } from './offchain'
-import { signEach } from './signer'
+import { assertTransactionMessageVersion, signEach } from './signer'
 import {
   WalletType,
   formatDerivationPath,
@@ -131,6 +131,7 @@ export class TrezorWallet implements HardwareWallet {
   public async signTransactionMessage(
     messageBytes: Uint8Array,
   ): Promise<SignatureBytes> {
+    assertTransactionMessageVersion(messageBytes, 'Trezor')
     const { signature } = await this.withApproval(device =>
       device.connect.solanaSignTransaction({
         device: { path: device.path },
@@ -146,11 +147,10 @@ export class TrezorWallet implements HardwareWallet {
     transactions: readonly { messageBytes: ArrayLike<number> }[],
     config?: SignerConfig,
   ): Promise<readonly SignatureDictionary[]> {
-    return signEach(
-      this.address,
-      transactions.map(t => t.messageBytes),
-      config,
-      bytes => this.signTransactionMessage(bytes),
+    const messages = transactions.map(t => t.messageBytes)
+    messages.forEach(m => assertTransactionMessageVersion(m, 'Trezor'))
+    return signEach(this.address, messages, config, bytes =>
+      this.signTransactionMessage(bytes),
     )
   }
 

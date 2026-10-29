@@ -47,7 +47,7 @@ if (wallet === null) {
 await wallet.signTransaction(tx)
 ```
 
-Version 1 transactions are not signed yet: the Ledger Solana app and the Trezor firmware do not support them, and `@solana/web3.js` 1.x cannot serialize them.
+Version 1 transactions are not signed yet: the Ledger Solana app and the Trezor firmware do not support them, so both wallets refuse them before any device call.
 
 `LedgerWallet` and `TrezorWallet` also provide `signOffchainMessage` and `confirmPublicKey` (address shown on the device, `--confirm-key` in Solana CLI).
 Ledger signs off-chain message format v0 (check with `verifyOffchainMessage`), Trezor supports only format v1 (check with `verifyOffchainMessageV1`).
