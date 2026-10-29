@@ -4,7 +4,7 @@
 
 Ledger and Trezor signing for Node.js Solana CLI tools.
 A wallet is selected by the same `usb://` url as in the [Solana CLI](https://docs.anza.xyz/cli/intro/#keypair-url)
-and works as a [`@solana/kit`](https://github.com/anza-xyz/kit) signer or as an Anchor compatible [`Wallet`](./src/wallet.ts) of `@solana/web3.js` 1.x.
+and works as a [`@solana/kit`](https://github.com/anza-xyz/kit) signer or as an Anchor compatible [`Wallet`](./src/wallet.ts) of `@solana/web3.js` 1.99 and 3.x.
 
 ## Installation
 
@@ -35,7 +35,7 @@ const message = setTransactionMessageFeePayerSigner(signer, transactionMessage)
 const transaction = await signTransactionMessageWithSigners(message)
 ```
 
-With `@solana/web3.js` 1.x:
+With `@solana/web3.js` 1.99 or 3.x:
 
 ```ts
 import { parseHardwareWallet } from '@marinade.finance/solana-hw-wallet'
@@ -48,6 +48,19 @@ await wallet.signTransaction(tx)
 // the device wallet behind it, e.g. to confirm the key or sign an off-chain message
 await wallet.hardwareWallet.confirmPublicKey()
 ```
+
+`@solana/web3.js` 3.x also takes the hardware wallet directly as a kit signer:
+
+```ts
+const signer = await openHardwareWallet('usb://ledger?key=0/0', logger)
+await transaction.partialSign(signer)
+await versionedTransaction.sign([signer])
+```
+
+| | legacy tx | v0 tx | v1 tx | off-chain v0 | off-chain v1 |
+|---|---|---|---|---|---|
+| Ledger | yes | yes | no | yes | yes (kit `signMessages`) |
+| Trezor | yes | yes | no | no | yes |
 
 Version 1 transactions are not signed yet: the Ledger Solana app and the Trezor firmware do not support them, so both wallets refuse them before any device call.
 
@@ -83,3 +96,8 @@ A passphrase is always entered on the device.
 Unit tests run against simulated devices that derive SLIP-10 keys from the `all all ... all` mnemonic,
 the expected keys and signatures come from the [trezor-suite e2e fixtures](https://github.com/trezor/trezor-suite/tree/develop/packages/connect-core/e2e/__fixtures__).
 The `trezor-emulator` CI job signs with the Trezor firmware emulator ([trezor-user-env](https://github.com/trezor/trezor-user-env)).
+Locally start the emulator with docker and run `pnpm -C packages/solana-hw-wallet test:emulator`:
+
+```sh
+docker run -d --rm --name trezor-user-env --network host -e SDL_VIDEODRIVER=dummy -e XDG_RUNTIME_DIR=/var/tmp ghcr.io/trezor/trezor-user-env:0126ecbed6edc132a4210803707a66fd04add700
+```
