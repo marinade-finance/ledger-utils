@@ -32,7 +32,7 @@ export async function toWeb3Wallet(wallet: HardwareWallet): Promise<Wallet> {
   }
 }
 
-async function loadWeb3(): Promise<typeof Web3Module> {
+export async function loadWeb3(): Promise<typeof Web3Module> {
   try {
     return await import('@solana/web3.js')
   } catch (e) {

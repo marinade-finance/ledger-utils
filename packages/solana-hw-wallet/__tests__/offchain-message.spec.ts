@@ -321,15 +321,22 @@ describe('off-chain helpers with kit types', () => {
     ).toBe(true)
   })
 
-  it('signs with raw secret key bytes as with a web3.js Keypair', async () => {
+  it('signs with raw secret key bytes', async () => {
     const keypair = Keypair.generate()
 
+    const signature = await signOffchainMessage(
+      'kit',
+      { secretKey: keypair.secretKey },
+      APP_DOMAIN,
+    )
+
     expect(
-      await signOffchainMessage(
+      await verifyOffchainMessage(
         'kit',
-        { secretKey: keypair.secretKey },
+        signature,
+        keypair.publicKey,
         APP_DOMAIN,
       ),
-    ).toEqual(await signOffchainMessage('kit', keypair, APP_DOMAIN))
+    ).toBe(true)
   })
 })

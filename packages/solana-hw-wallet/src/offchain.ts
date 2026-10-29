@@ -75,20 +75,11 @@ export function formatOffchainMessageV1(
   message: string,
   signers: AddressInput[],
 ): Buffer {
-  const encoder = getAddressEncoder()
-  const sortedSigners = signers
-    .map(s => toAddress(s))
-    .sort((a, b) =>
-      Buffer.compare(
-        Buffer.from(encoder.encode(a)),
-        Buffer.from(encoder.encode(b)),
-      ),
-    )
   return Buffer.from(
     getOffchainMessageV1Encoder().encode({
       version: 1,
       content: message,
-      requiredSignatories: sortedSigners.map(address => ({ address })),
+      requiredSignatories: signers.map(s => ({ address: toAddress(s) })),
     }),
   )
 }

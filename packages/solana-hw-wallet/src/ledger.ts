@@ -1,4 +1,8 @@
-import { logInfo, scheduleOnExit } from '@marinade.finance/ts-common'
+import {
+  doWithLock,
+  logInfo,
+  scheduleOnExit,
+} from '@marinade.finance/ts-common'
 import { getAddressDecoder } from '@solana/addresses'
 import { signatureBytes } from '@solana/keys'
 
@@ -40,15 +44,22 @@ const LEDGER_STATUS_MESSAGES: Record<number, string> = {
 }
 
 class LedgerDevice implements HardwareDevice {
-  constructor(public readonly api: Solana) {}
+  constructor(
+    public readonly api: Solana,
+    private readonly hidPath: string,
+  ) {}
+
+  // wallets of one device share its transport, which fails on overlapping exchanges
+  run<R>(action: () => Promise<R>): Promise<R> {
+    return doWithLock(`solana-hw-wallet:ledger:${this.hidPath}`, action)
+  }
 
   async getAddress(
     derivationPath: number[],
     display = false,
   ): Promise<Address> {
-    const { address } = await this.api.getAddress(
-      formatDerivationPath(derivationPath),
-      display,
+    const { address } = await this.run(() =>
+      this.api.getAddress(formatDerivationPath(derivationPath), display),
     )
     return getAddressDecoder().decode(address)
   }
@@ -164,19 +175,21 @@ export class LedgerWallet {
   }
 
   private async withApproval<R>(action: () => Promise<R>): Promise<R> {
-    logInfo(
-      this.logger,
-      `Waiting for your approval on Ledger hardware wallet ${
-        this.derivationPath
-      } [[${this.address}]]`,
-    )
-    try {
-      const result = await action()
-      logInfo(this.logger, '✅ Approved')
-      return result
-    } catch (e) {
-      throw toLedgerError(e)
-    }
+    return this.device.run(async () => {
+      logInfo(
+        this.logger,
+        `Waiting for your approval on Ledger hardware wallet ${
+          this.derivationPath
+        } [[${this.address}]]`,
+      )
+      try {
+        const result = await action()
+        logInfo(this.logger, '✅ Approved')
+        return result
+      } catch (e) {
+        throw toLedgerError(e)
+      }
+    })
   }
 }
 
@@ -260,7 +273,7 @@ async function openLedgerDevices(): Promise<LedgerDevice[]> {
       IN_LIB_TRANSPORT_CACHE.set(path, opened)
       transport = opened
     }
-    devices.push(new LedgerDevice(new Solana(transport)))
+    devices.push(new LedgerDevice(new Solana(transport), path))
   }
   return devices
 }

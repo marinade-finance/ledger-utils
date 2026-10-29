@@ -223,6 +223,43 @@ describe.each(['ledger', 'trezor'] as const)('%s as kit signer', name => {
   })
 })
 
+describe('two keys of one device', () => {
+  const open: Record<
+    'ledger' | 'trezor',
+    (key: string) => Promise<HardwareWallet>
+  > = {
+    ledger: key => LedgerWallet.instance(`usb://ledger?key=${key}`),
+    trezor: key => TrezorWallet.instance(`usb://trezor?key=${key}`),
+  }
+
+  it.each(['ledger', 'trezor'] as const)(
+    'sign one %s transaction through kit signTransactionMessageWithSigners',
+    async name => {
+      connectLedger()
+      fakeTrezor.seeds = [SEED_ALL]
+      const feePayer = await open[name]('0/0')
+      const authority = await open[name]('0/1')
+      const message = appendTransactionMessageInstruction(
+        {
+          programAddress: SYSTEM_PROGRAM,
+          accounts: [
+            { address: authority.address, role: 2, signer: authority },
+          ],
+        },
+        signerTransactionMessage(feePayer),
+      )
+
+      const tx = await signTransactionMessageWithSigners(message)
+
+      for (const signer of [feePayer.address, authority.address]) {
+        expect(
+          await verifyBy(signer, tx.signatures[signer], tx.messageBytes),
+        ).toBe(true)
+      }
+    },
+  )
+})
+
 describe('Ledger kit message signer', () => {
   it('passes off-chain message v0 bytes to the device unchanged', async () => {
     const transport = connectLedger()
@@ -305,6 +342,25 @@ describe('Trezor kit message signer', () => {
 
     await expect(wallet.signMessages([envelope])).rejects.toThrow(
       'Trezor signs off-chain messages of version 1 only',
+    )
+    expect(
+      fakeTrezor.calls.filter(c => c.method === 'solanaSignMessage'),
+    ).toHaveLength(0)
+  })
+
+  it('rejects off-chain message v1 the firmware cannot rebuild from text', async () => {
+    fakeTrezor.seeds = [SEED_ALL]
+    const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
+    const withNul = Buffer.concat([
+      Buffer.from([0xff]),
+      Buffer.from('solana offchain'),
+      Buffer.from([1, 1]),
+      Buffer.from(getAddressEncoder().encode(ALL_0_0)),
+      Buffer.from('a\u0000b'),
+    ])
+
+    await expect(wallet.signMessages([{ content: withNul }])).rejects.toThrow(
+      'Trezor cannot sign this off-chain message',
     )
     expect(
       fakeTrezor.calls.filter(c => c.method === 'solanaSignMessage'),

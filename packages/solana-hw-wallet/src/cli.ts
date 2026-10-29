@@ -3,7 +3,7 @@ import { logDebug } from '@marinade.finance/ts-common'
 import { LedgerWallet } from './ledger'
 import { TrezorWallet } from './trezor'
 import { WalletType, isHardwareWalletUrl, parseWalletUrl } from './url'
-import { toWeb3Wallet } from './web3js'
+import { loadWeb3, toWeb3Wallet } from './web3js'
 
 import type { HardwareWallet, Wallet } from './wallet'
 import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
@@ -32,5 +32,7 @@ export async function parseHardwareWallet(
   if (!isHardwareWalletUrl(url)) {
     return null
   }
+  // fail on a missing package before the user is asked to pair or unlock the device
+  await loadWeb3()
   return toWeb3Wallet(await openHardwareWallet(url, logger))
 }

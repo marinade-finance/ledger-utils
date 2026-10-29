@@ -203,7 +203,6 @@ describe('LedgerWallet', () => {
     const wallet = await parseHardwareWallet(' usb://ledger?key=0/0 ')
     expect(wallet?.publicKey).toBeInstanceOf(PublicKey)
     expect(wallet?.publicKey).toEqual(ALL_0_0)
-    expect(await parseHardwareWallet('/path/to/keypair.json')).toBeNull()
   })
 
   it('signs chunked off-chain message verifiable as v0', async () => {

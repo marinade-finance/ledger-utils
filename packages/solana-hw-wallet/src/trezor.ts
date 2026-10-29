@@ -1,12 +1,13 @@
 import { hostname } from 'os'
 import { createInterface } from 'readline/promises'
 
-import { logInfo } from '@marinade.finance/ts-common'
+import { doWithLock, logInfo } from '@marinade.finance/ts-common'
 import { address } from '@solana/addresses'
 import { signatureBytes } from '@solana/keys'
 import { getOffchainMessageDecoder } from '@solana/offchain-messages'
 
 import { resolveDevice } from './discovery'
+import { formatOffchainMessageV1 } from './offchain'
 import { signEach } from './signer'
 import {
   WalletType,
@@ -47,6 +48,8 @@ export const DEFAULT_TREZOR_MANIFEST: TrezorManifest = {
 // @trezor/connect keeps the event loop alive, closing it when idle lets the CLI exit on its own
 const IDLE_CLOSE_MS = 1000
 const TRANSPORT_START_TIMEOUT_MS = 10_000
+// connect fails a second call to a device while one runs, kit signs partial signers concurrently
+const TREZOR_LOCK = 'solana-hw-wallet:trezor'
 
 type Session = { devices: TrezorDevice[] }
 
@@ -160,11 +163,15 @@ export class TrezorWallet {
         if (decoded.version !== 1) {
           throw new Error('Trezor signs off-chain messages of version 1 only')
         }
+        const signers = decoded.requiredSignatories.map(s => s.address)
+        // the text decoder drops NUL and BOM, the firmware would sign other bytes
+        if (!formatOffchainMessageV1(decoded.content, signers).equals(bytes)) {
+          throw new Error(
+            'Trezor cannot sign this off-chain message, its text does not encode back to the same bytes',
+          )
+        }
         return signatureBytes(
-          await this.signOffchainMessage(
-            decoded.content,
-            decoded.requiredSignatories.map(s => s.address),
-          ),
+          await this.signOffchainMessage(decoded.content, signers),
         )
       },
     )
@@ -266,7 +273,8 @@ async function withSession<R>(
         }
       })
     }
-    return await action(await session)
+    const opened = session
+    return await doWithLock(TREZOR_LOCK, async () => action(await opened))
   } finally {
     pendingCalls--
     if (pendingCalls === 0) {

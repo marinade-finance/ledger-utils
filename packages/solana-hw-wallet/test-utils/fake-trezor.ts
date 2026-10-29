@@ -34,6 +34,7 @@ export class FakeTrezorConnect {
   public readonly calls: Call[] = []
   public initSettings: Record<string, unknown> | undefined
   private readonly listeners = new Map<string, Listener[]>()
+  private readonly busyPaths = new Set<string>()
 
   on(event: string, listener: Listener): void {
     this.listeners.set(event, [...(this.listeners.get(event) ?? []), listener])
@@ -118,23 +119,36 @@ export class FakeTrezorConnect {
     })
   }
 
-  private respond<T>(
+  // as connect, a second call to a device while one is running fails
+  private async respond<T>(
     method: string,
     params: { device: { path: string } },
     action: (seed: Buffer) => T,
   ) {
     this.calls.push({ method, params })
     const device = this.devices.find(d => d.path === params.device.path)
-    if (this.failure !== undefined || device === undefined) {
-      return {
-        success: false as const,
-        error: this.failure ?? {
-          message: 'Device not found',
-          code: 'Device_NotFound',
-        },
-      }
+    const failure =
+      this.failure ??
+      (device === undefined
+        ? { message: 'Device not found', code: 'Device_NotFound' }
+        : this.busyPaths.has(device.path)
+          ? {
+              message: 'Device call in progress',
+              code: 'Device_CallInProgress',
+            }
+          : undefined)
+    if (failure !== undefined || device === undefined) {
+      return { success: false as const, error: failure! }
     }
-    return { success: true as const, payload: action(device.seed) }
+    this.busyPaths.add(device.path)
+    try {
+      await new Promise(resolve => {
+        setTimeout(resolve, 0)
+      })
+      return { success: true as const, payload: action(device.seed) }
+    } finally {
+      this.busyPaths.delete(device.path)
+    }
   }
 
   private emit(event: string, payload: { path: string }): void {

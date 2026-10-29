@@ -35,11 +35,12 @@ const ALL_0_0 = address('14CCvQzQzHCVgZM3j9soPnXuJXh1RmCfwLVUcdfbZVBS')
 const APP_DOMAIN = '11111111111111111111111111111111'
 
 describe('without @solana/web3.js installed', () => {
+  let transport: FakeLedgerTransport
+  let deviceCounter = 0
   beforeEach(() => {
-    mockLedgerDevices.set(
-      'fake-ledger-no-web3',
-      new FakeLedgerTransport(mnemonicToSeed(MNEMONIC_ALL)),
-    )
+    transport = new FakeLedgerTransport(mnemonicToSeed(MNEMONIC_ALL))
+    mockLedgerDevices.clear()
+    mockLedgerDevices.set(`fake-ledger-no-web3-${deviceCounter++}`, transport)
   })
 
   it('cannot load @solana/web3.js', async () => {
@@ -95,10 +96,13 @@ describe('without @solana/web3.js installed', () => {
     ).toBe(true)
   })
 
-  it('explains the missing package for the web3.js wallet', async () => {
+  it('explains the missing package for the web3.js wallet before reaching the device', async () => {
     const { parseHardwareWallet } = await import('../src')
+    const exchange = jest.spyOn(transport, 'exchange')
+
     await expect(parseHardwareWallet('usb://ledger')).rejects.toThrow(
       'Anchor compatible Wallet requires package @solana/web3.js to be installed',
     )
+    expect(exchange).not.toHaveBeenCalled()
   })
 })
