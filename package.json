@@ -7,7 +7,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "pnpm lint && pnpm format:check",
+    "check": "pnpm lint && pnpm format:check && pnpm -C packages/solana-hw-wallet typecheck:web3js-v3",
     "fix": "pnpm lint:fix && pnpm format",
     "prepare": "husky",
     "publish:all": "pnpm build && pnpm test && pnpm publish -r"

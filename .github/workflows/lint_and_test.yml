@@ -27,6 +27,7 @@ jobs:
       - run: pnpm install
       - run: pnpm lint
       - run: pnpm build
+      - run: pnpm --filter @marinade.finance/solana-hw-wallet typecheck:web3js-v3
       - run: pnpm test
 
   trezor-emulator:

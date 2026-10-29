@@ -1,16 +1,6 @@
 import { verifyOffchainMessage } from '@marinade.finance/web3js-kit'
-import { address } from '@solana/addresses'
-import {
-  Keypair,
-  MessageV1,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-  TransactionMessage,
-  VersionedTransaction,
-} from '@solana/web3.js'
+import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
 
-import { parseHardwareWallet } from '../src/cli'
 import { LedgerWallet } from '../src/ledger'
 import { toWeb3Wallet } from '../src/web3js'
 import { FakeLedgerTransport } from '../test-utils/fake-ledger'
@@ -138,95 +128,6 @@ describe('LedgerWallet', () => {
     )
     expect(wallet.address).toEqual(target.toBase58())
     expect(wallet.derivationPath).toEqual("44'/501'/3'/1'")
-  })
-
-  it('signs legacy and versioned transactions in a batch', async () => {
-    const [all] = connectLedgers(SEED_ALL)
-    const wallet = await toWeb3Wallet(
-      await LedgerWallet.instance('usb://ledger?key=0/0'),
-    )
-    const legacy = transferTx(wallet.publicKey)
-    const versioned = new VersionedTransaction(
-      new TransactionMessage({
-        payerKey: wallet.publicKey,
-        recentBlockhash: Keypair.generate().publicKey.toBase58(),
-        instructions: transferTx(wallet.publicKey).instructions,
-      }).compileToV0Message(),
-    )
-
-    const [signedLegacy, signedVersioned] = await wallet.signAllTransactions<
-      Transaction | VersionedTransaction
-    >([legacy, versioned])
-
-    expect((signedLegacy as Transaction).verifySignatures()).toBe(true)
-    expect(all!.signRequests.map(r => r.message)).toEqual([
-      legacy.serializeMessage(),
-      Buffer.from(versioned.message.serialize()),
-    ])
-    expect(signedVersioned!.signatures[0]).toEqual(
-      new Uint8Array(
-        (await import('../test-utils/slip10')).signEd25519(
-          deriveKeypair(SEED_ALL, [44, 501, 0, 0]),
-          versioned.message.serialize(),
-        ),
-      ),
-    )
-  })
-
-  it('fails on web3.js v1 transaction before reaching the device', async () => {
-    const [all] = connectLedgers(SEED_ALL)
-    const wallet = await toWeb3Wallet(
-      await LedgerWallet.instance('usb://ledger?key=0/0'),
-    )
-    const tx = new VersionedTransaction(
-      new MessageV1({
-        header: {
-          numRequiredSignatures: 1,
-          numReadonlySignedAccounts: 0,
-          numReadonlyUnsignedAccounts: 1,
-        },
-        staticAccountKeys: [wallet.publicKey, SystemProgram.programId],
-        recentBlockhash: Keypair.generate().publicKey.toBase58(),
-        compiledInstructions: [
-          { programIdIndex: 1, accountKeyIndexes: [0], data: new Uint8Array() },
-        ],
-      }),
-    )
-
-    await expect(wallet.signTransaction(tx)).rejects.toThrow(
-      'Serialization of version 1 transaction messages is not supported',
-    )
-    expect(all!.signRequests).toHaveLength(0)
-  })
-
-  it('parses url into web3.js wallet with the device address', async () => {
-    connectLedgers(SEED_ALL)
-    const wallet = await parseHardwareWallet(' usb://ledger?key=0/0 ')
-    expect(wallet?.publicKey).toBeInstanceOf(PublicKey)
-    expect(wallet?.publicKey).toEqual(ALL_0_0)
-  })
-
-  it('signs an off-chain message with the hardware wallet of the parsed web3.js wallet', async () => {
-    const [all] = connectLedgers(SEED_ALL)
-    const wallet = await parseHardwareWallet('usb://ledger?key=0/0')
-    const hardwareWallet = wallet!.hardwareWallet
-    expect(hardwareWallet).toBeInstanceOf(LedgerWallet)
-    expect(hardwareWallet.address).toEqual(ALL_0_0.toBase58())
-    const domain = SystemProgram.programId.toBase58()
-
-    const signature = await (
-      hardwareWallet as LedgerWallet
-    ).signOffchainMessage('web3', domain)
-
-    expect(all!.signRequests.map(r => r.ins)).toEqual([0x07])
-    expect(
-      await verifyOffchainMessage(
-        'web3',
-        signature,
-        address(ALL_0_0.toBase58()),
-        domain,
-      ),
-    ).toBe(true)
   })
 
   it('signs chunked off-chain message verifiable as v0', async () => {

@@ -45,9 +45,9 @@ export interface HardwareWallet {
 
 export function serializeTransactionMessage(
   tx: Transaction | VersionedTransaction,
-): Buffer {
+): Uint8Array {
   // no instanceof, the transaction may come from a different @solana/web3.js copy
   return 'serializeMessage' in tx
     ? tx.serializeMessage()
-    : Buffer.from(tx.message.serialize())
+    : tx.message.serialize()
 }

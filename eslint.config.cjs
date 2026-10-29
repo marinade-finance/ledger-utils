@@ -19,4 +19,10 @@ module.exports = [
       'no-await-in-loop': 'off',
     },
   },
+  {
+    files: ['**/test-utils/**/*.ts'],
+    rules: {
+      'jest/no-export': 'off',
+    },
+  },
 ]

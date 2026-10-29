@@ -87,3 +87,14 @@ function statusWord(code: number): Buffer {
   buffer.writeUInt16BE(code)
   return buffer
 }
+
+export const fakeLedgerDevices = new Map<string, FakeLedgerTransport>()
+
+// jest.mock factory of @ledgerhq/hw-transport-node-hid-noevents serving fakeLedgerDevices
+export const fakeLedgerHidModule = {
+  __esModule: true,
+  getDevices: () => [...fakeLedgerDevices.keys()].map(path => ({ path })),
+  default: {
+    open: (path: string) => Promise.resolve(fakeLedgerDevices.get(path)),
+  },
+}
