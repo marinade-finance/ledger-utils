@@ -9,6 +9,10 @@ allowBuilds:
   usb: true
   utf-8-validate: true
 
+overrides:
+  # DROP BEFORE RELEASE: local typescript-common until web3js-kit 5.12.1 is published
+  '@marinade.finance/web3js-kit': link:../typescript-common/packages/web3js-kit
+
 peerDependencyRules:
   allowedVersions:
     # token-2022 0.9 (via @trezor/connect) peers sysvars ^5 but its kit ^6 peer ships sysvars 6

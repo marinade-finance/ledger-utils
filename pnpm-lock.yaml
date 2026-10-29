@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@marinade.finance/web3js-kit': link:../typescript-common/packages/web3js-kit
+
 importers:
 
   .:
@@ -63,6 +66,9 @@ importers:
 
   packages/solana-hw-wallet:
     dependencies:
+      '@marinade.finance/web3js-kit':
+        specifier: link:../../../typescript-common/packages/web3js-kit
+        version: link:../../../typescript-common/packages/web3js-kit
       '@solana/addresses':
         specifier: ^8.6.0
         version: 8.6.0(typescript@5.9.3)

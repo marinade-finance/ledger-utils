@@ -36,6 +36,7 @@
     "test:emulator": "tsc --build && node --test dist/emulator/trezor.e2e.js"
   },
   "dependencies": {
+    "@marinade.finance/web3js-kit": "^5.12.1",
     "@solana/addresses": "^8.6.0",
     "@solana/errors": "^8.6.0",
     "@solana/keys": "^8.6.0",
