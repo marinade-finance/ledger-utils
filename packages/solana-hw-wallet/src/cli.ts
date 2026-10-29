@@ -5,7 +5,8 @@ import { TrezorWallet } from './trezor'
 import { WalletType, isHardwareWalletUrl, parseWalletUrl } from './url'
 import { loadWeb3, toWeb3Wallet } from './web3js'
 
-import type { HardwareWallet, Wallet } from './wallet'
+import type { HardwareWallet } from './wallet'
+import type { Web3HardwareWallet } from './web3js'
 import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
 
 export async function openHardwareWallet(
@@ -27,7 +28,7 @@ export async function openHardwareWallet(
 export async function parseHardwareWallet(
   pathOrUrl: string,
   logger?: LoggerPlaceholder,
-): Promise<Wallet | null> {
+): Promise<Web3HardwareWallet | null> {
   const url = pathOrUrl.trim()
   if (!isHardwareWalletUrl(url)) {
     return null

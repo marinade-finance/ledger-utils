@@ -45,6 +45,8 @@ if (wallet === null) {
   // not a hardware wallet url, e.g. a keypair file path
 }
 await wallet.signTransaction(tx)
+// the device wallet behind it, e.g. to confirm the key or sign an off-chain message
+await wallet.hardwareWallet.confirmPublicKey()
 ```
 
 Version 1 transactions are not signed yet: the Ledger Solana app and the Trezor firmware do not support them, so both wallets refuse them before any device call.

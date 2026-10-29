@@ -4,8 +4,17 @@ import type { HardwareWallet, Wallet } from './wallet'
 import type * as Web3Module from '@solana/web3.js'
 import type { Transaction, VersionedTransaction } from '@solana/web3.js'
 
+/**
+ * Anchor compatible Wallet that also carries the hardware wallet it signs with.
+ */
+export type Web3HardwareWallet = Wallet & {
+  readonly hardwareWallet: HardwareWallet
+}
+
 // Anchor compatible Wallet over a hardware wallet, @solana/web3.js is loaded only here
-export async function toWeb3Wallet(wallet: HardwareWallet): Promise<Wallet> {
+export async function toWeb3Wallet(
+  wallet: HardwareWallet,
+): Promise<Web3HardwareWallet> {
   const { PublicKey } = await loadWeb3()
   const publicKey = new PublicKey(wallet.address)
   const signTransaction = async <T extends Transaction | VersionedTransaction>(
@@ -19,6 +28,7 @@ export async function toWeb3Wallet(wallet: HardwareWallet): Promise<Wallet> {
   }
   return {
     publicKey,
+    hardwareWallet: wallet,
     signTransaction,
     signAllTransactions: async <T extends Transaction | VersionedTransaction>(
       txs: T[],

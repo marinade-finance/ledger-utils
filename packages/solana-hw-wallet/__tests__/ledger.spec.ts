@@ -205,6 +205,24 @@ describe('LedgerWallet', () => {
     expect(wallet?.publicKey).toEqual(ALL_0_0)
   })
 
+  it('signs an off-chain message with the hardware wallet of the parsed web3.js wallet', async () => {
+    const [all] = connectLedgers(SEED_ALL)
+    const wallet = await parseHardwareWallet('usb://ledger?key=0/0')
+    const hardwareWallet = wallet!.hardwareWallet
+    expect(hardwareWallet).toBeInstanceOf(LedgerWallet)
+    expect(hardwareWallet.address).toEqual(ALL_0_0.toBase58())
+    const domain = SystemProgram.programId.toBase58()
+
+    const signature = await (
+      hardwareWallet as LedgerWallet
+    ).signOffchainMessage('web3', domain)
+
+    expect(all!.signRequests.map(r => r.ins)).toEqual([0x07])
+    expect(
+      await verifyOffchainMessage('web3', signature, ALL_0_0, domain),
+    ).toBe(true)
+  })
+
   it('signs chunked off-chain message verifiable as v0', async () => {
     const [all] = connectLedgers(SEED_ALL)
     const wallet = await LedgerWallet.instance('usb://ledger?key=0/0')
