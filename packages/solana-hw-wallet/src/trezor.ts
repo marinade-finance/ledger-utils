@@ -18,7 +18,12 @@ import {
 import { toAddress } from './wallet'
 
 import type { HardwareDevice } from './discovery'
-import type { AddressInput, SignatureDictionary, SignerConfig } from './wallet'
+import type {
+  AddressInput,
+  HardwareWallet,
+  SignatureDictionary,
+  SignerConfig,
+} from './wallet'
 import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
 import type { Address } from '@solana/addresses'
 import type { SignatureBytes } from '@solana/keys'
@@ -79,7 +84,7 @@ class TrezorDevice implements HardwareDevice {
   }
 }
 
-export class TrezorWallet {
+export class TrezorWallet implements HardwareWallet {
   // From url usb://trezor[/<pubkey>][?key=<derivation-path>] connects Trezor via '@trezor/connect'
   static async instance(
     trezorUrl = 'usb://trezor',

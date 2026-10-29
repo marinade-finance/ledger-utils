@@ -12,7 +12,11 @@ import { signEach } from './signer'
 import { WalletType, formatDerivationPath, parseWalletUrl } from './url'
 
 import type { HardwareDevice } from './discovery'
-import type { SignatureDictionary, SignerConfig } from './wallet'
+import type {
+  HardwareWallet,
+  SignatureDictionary,
+  SignerConfig,
+} from './wallet'
 import type Solana from '@ledgerhq/hw-app-solana'
 import type Transport from '@ledgerhq/hw-transport'
 import type TransportNodeHid from '@ledgerhq/hw-transport-node-hid-noevents'
@@ -65,7 +69,7 @@ class LedgerDevice implements HardwareDevice {
   }
 }
 
-export class LedgerWallet {
+export class LedgerWallet implements HardwareWallet {
   // From url usb://ledger[/<pubkey>][?key=<derivation-path>] opens Ledger via '@ledgerhq/hw-app-solana'
   static async instance(
     ledgerUrl = 'usb://ledger',

@@ -1,7 +1,5 @@
 import { address } from '@solana/addresses'
 
-import type { LedgerWallet } from './ledger'
-import type { TrezorWallet } from './trezor'
 import type { Address } from '@solana/addresses'
 import type { SignatureBytes } from '@solana/keys'
 import type {
@@ -25,11 +23,27 @@ export interface Wallet {
   publicKey: PublicKey
 }
 
-export type HardwareWallet = LedgerWallet | TrezorWallet
-
 // structurally the kit @solana/signers SignatureDictionary and signer config
 export type SignatureDictionary = Readonly<Record<Address, SignatureBytes>>
 export type SignerConfig = { abortSignal?: AbortSignal }
+
+/**
+ * A key on a Ledger or Trezor device. It is a kit TransactionPartialSigner and MessagePartialSigner.
+ */
+export interface HardwareWallet {
+  readonly address: Address
+  readonly derivationPath: string
+  signTransactionMessage(messageBytes: Uint8Array): Promise<SignatureBytes>
+  signTransactions(
+    transactions: readonly { messageBytes: ArrayLike<number> }[],
+    config?: SignerConfig,
+  ): Promise<readonly SignatureDictionary[]>
+  signMessages(
+    messages: readonly { content: ArrayLike<number> }[],
+    config?: SignerConfig,
+  ): Promise<readonly SignatureDictionary[]>
+  confirmPublicKey(): Promise<Address>
+}
 
 export type AddressInput = string | { toBase58(): string }
 
