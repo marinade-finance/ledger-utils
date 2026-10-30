@@ -10,7 +10,7 @@ allowBuilds:
   utf-8-validate: true
 
 overrides:
-  # DROP BEFORE RELEASE: local typescript-common until web3js-kit 5.12.1 is published
+  # DROP BEFORE RELEASE: local typescript-common until web3js-kit 5.12.2 is published
   '@marinade.finance/web3js-kit': link:../typescript-common/packages/web3js-kit
   # kit 8 of web3.js 3 would lift the token-2022 sysvars peer (via @trezor/connect) off its kit 6
   '@solana-program/token-2022>@solana/sysvars': 6.10.0
@@ -26,3 +26,6 @@ onlyBuiltDependencies:
   - unrs-resolver
   - usb
   - utf-8-validate
+
+minimumReleaseAgeExclude:
+  - '@marinade.finance/ts-common@5.12.1'

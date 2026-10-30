@@ -8,7 +8,11 @@ import { getAddressDecoder } from '@solana/addresses'
 import { signatureBytes } from '@solana/keys'
 
 import { resolveDevice } from './discovery'
-import { assertTransactionMessageVersion, signEach } from './signer'
+import {
+  assertSignedBy,
+  assertTransactionMessageVersion,
+  signEach,
+} from './signer'
 import { WalletType, formatDerivationPath, parseWalletUrl } from './url'
 
 import type { HardwareDevice } from './discovery'
@@ -25,7 +29,7 @@ import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
 import type { Address } from '@solana/addresses'
 import type { SignatureBytes } from '@solana/keys'
 
-const IN_LIB_TRANSPORT_CACHE: Map<string, Transport> = new Map()
+const IN_LIB_TRANSPORT_CACHE: Map<string, Promise<Transport>> = new Map()
 
 const LEDGER_APP = 'the Ledger Solana app'
 const LOCKED = 'Ledger device is locked. Please, unlock it first.'
@@ -59,12 +63,9 @@ class LedgerDevice implements HardwareDevice {
     return doWithLock(`solana-hw-wallet:ledger:${this.hidPath}`, action)
   }
 
-  async getAddress(
-    derivationPath: number[],
-    display = false,
-  ): Promise<Address> {
+  async getAddress(derivationPath: number[]): Promise<Address> {
     const { address } = await this.run(() =>
-      this.api.getAddress(formatDerivationPath(derivationPath), display),
+      this.api.getAddress(formatDerivationPath(derivationPath)),
     )
     return getAddressDecoder().decode(address)
   }
@@ -112,13 +113,14 @@ export class LedgerWallet implements HardwareWallet {
     messageBytes: Uint8Array,
   ): Promise<SignatureBytes> {
     assertTransactionMessageVersion(messageBytes, LEDGER_APP)
-    return this.withApproval(async () => {
+    const signature = await this.withApproval(async () => {
       const { signature } = await this.device.api.signTransaction(
         this.derivationPath,
         Buffer.from(messageBytes),
       )
       return signatureBytes(signature)
     })
+    return assertSignedBy(this.address, messageBytes, signature, 'Ledger')
   }
 
   // kit TransactionPartialSigner
@@ -157,13 +159,14 @@ export class LedgerWallet implements HardwareWallet {
   }
 
   private async signOffchainBytes(bytes: Uint8Array): Promise<SignatureBytes> {
-    return this.withApproval(async () => {
+    const signature = await this.withApproval(async () => {
       const { signature } = await this.device.api.signOffchainMessage(
         this.derivationPath,
         Buffer.from(bytes),
       )
       return signatureBytes(signature)
     })
+    return assertSignedBy(this.address, bytes, signature, 'Ledger')
   }
 
   // Solana CLI --confirm-key: user verifies the address shown on the device
@@ -256,16 +259,19 @@ async function openLedgerDevices(): Promise<LedgerDevice[]> {
     }
     let transport = IN_LIB_TRANSPORT_CACHE.get(path)
     if (transport === undefined) {
-      const opened = await TransportNodeHid.open(path)
-      scheduleOnExit(() => {
-        opened.close().catch(() => {
-          /* ignore errors on closing transport */
+      // concurrent wallets share one open, a second open of the HID path fails
+      transport = TransportNodeHid.open(path).then(opened => {
+        scheduleOnExit(() => {
+          opened.close().catch(() => {
+            /* ignore errors on closing transport */
+          })
         })
+        return opened
       })
-      IN_LIB_TRANSPORT_CACHE.set(path, opened)
-      transport = opened
+      IN_LIB_TRANSPORT_CACHE.set(path, transport)
+      void transport.catch(() => IN_LIB_TRANSPORT_CACHE.delete(path))
     }
-    devices.push(new LedgerDevice(new Solana(transport), path))
+    devices.push(new LedgerDevice(new Solana(await transport), path))
   }
   return devices
 }

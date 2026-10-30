@@ -13,6 +13,8 @@ export type FakeLedgerBehavior = {
   status?: number
   // status word returned to signing APDUs, e.g. 0x6985 user rejection
   signStatus?: number
+  // seed of the signing key, e.g. a device swapped for another seed after the wallet opened
+  signSeed?: Buffer
 }
 
 export type SignRequest = { ins: number; path: number[]; message: Buffer }
@@ -63,7 +65,10 @@ export class FakeLedgerTransport extends Transport {
       const message = payload.subarray(1 + length)
       this.signRequests.push({ ins, path, message })
       return Buffer.concat([
-        signEd25519(deriveKeypair(this.seed, path), message),
+        signEd25519(
+          deriveKeypair(this.behavior.signSeed ?? this.seed, path),
+          message,
+        ),
         statusWord(0x9000),
       ])
     }

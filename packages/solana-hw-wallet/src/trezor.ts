@@ -8,7 +8,11 @@ import { signatureBytes } from '@solana/keys'
 import { getOffchainMessageDecoder } from '@solana/offchain-messages'
 
 import { resolveDevice } from './discovery'
-import { assertTransactionMessageVersion, signEach } from './signer'
+import {
+  assertSignedBy,
+  assertTransactionMessageVersion,
+  signEach,
+} from './signer'
 import {
   WalletType,
   formatDerivationPath,
@@ -57,6 +61,8 @@ const TREZOR_LOCK = 'solana-hw-wallet:trezor'
 type Session = { devices: TrezorDevice[] }
 
 let session: Promise<Session> | null = null
+// a new session waits for the dispose, which drops the listeners of every session
+let closing: Promise<void> = Promise.resolve()
 let pendingCalls = 0
 let idleTimer: NodeJS.Timeout | undefined
 const thpCredentials: ThpCredentials[] = []
@@ -137,7 +143,12 @@ export class TrezorWallet implements HardwareWallet {
         serializedTx: Buffer.from(messageBytes).toString('hex'),
       }),
     )
-    return signatureBytes(Buffer.from(signature, 'hex'))
+    return assertSignedBy(
+      this.address,
+      messageBytes,
+      signatureBytes(Buffer.from(signature, 'hex')),
+      'Trezor',
+    )
   }
 
   // kit TransactionPartialSigner
@@ -195,7 +206,12 @@ export class TrezorWallet implements HardwareWallet {
         signers,
       }),
     )
-    return signatureBytes(Buffer.from(signature, 'hex'))
+    return assertSignedBy(
+      this.address,
+      formatOffchainMessageV1(message, signers ?? [this.address]),
+      signatureBytes(Buffer.from(signature, 'hex')),
+      'Trezor',
+    )
   }
 
   // Solana CLI --confirm-key: user verifies the address shown on the device
@@ -252,12 +268,17 @@ export async function closeTrezorConnect(): Promise<void> {
   const current = session
   session = null
   if (current !== null) {
-    try {
-      await current
-      ;(await loadTrezorConnect()).default.dispose()
-    } catch {
-      /* failed session is already disposed */
-    }
+    closing = disposeSession(current)
+  }
+  await closing
+}
+
+async function disposeSession(current: Promise<Session>): Promise<void> {
+  try {
+    await current
+    ;(await loadTrezorConnect()).default.dispose()
+  } catch {
+    /* failed session is already disposed */
   }
 }
 
@@ -270,7 +291,7 @@ async function withSession<R>(
   pendingCalls++
   try {
     if (session === null) {
-      const opening = openSession(manifest, logger)
+      const opening = closing.then(() => openSession(manifest, logger))
       session = opening
       opening.catch(() => {
         if (session === opening) {

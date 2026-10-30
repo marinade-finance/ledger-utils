@@ -11,11 +11,15 @@ import {
 } from '../test-utils/slip10'
 
 const mockLedgerDevices = new Map<string, FakeLedgerTransport>()
+const mockOpenedPaths: string[] = []
 jest.mock('@ledgerhq/hw-transport-node-hid-noevents', () => ({
   __esModule: true,
   getDevices: () => [...mockLedgerDevices.keys()].map(path => ({ path })),
   default: {
-    open: (path: string) => Promise.resolve(mockLedgerDevices.get(path)),
+    open: (path: string) => {
+      mockOpenedPaths.push(path)
+      return Promise.resolve(mockLedgerDevices.get(path))
+    },
   },
 }))
 
@@ -80,6 +84,40 @@ describe('LedgerWallet', () => {
         `usb://ledger/${deriveKeypair(SEED_OTHER, [44, 501]).address}, ` +
         `usb://ledger/${ALL_BASE.toBase58()}`,
     )
+  })
+
+  it('lists readable wallet ids when another device cannot be read', async () => {
+    const [other] = connectLedgers(SEED_OTHER, SEED_ALL)
+    other!.behavior = { status: 0x6e01 }
+    await expect(LedgerWallet.instance('usb://ledger')).rejects.toThrow(
+      'Multiple ledger devices found, select one by wallet id: ' +
+        `usb://ledger/${ALL_BASE.toBase58()} (1 more device cannot be read)`,
+    )
+  })
+
+  it('opens each device once for concurrent wallets', async () => {
+    connectLedgers(SEED_ALL)
+    mockOpenedPaths.length = 0
+    const [first, second] = await Promise.all([
+      LedgerWallet.instance('usb://ledger?key=0/0'),
+      LedgerWallet.instance('usb://ledger?key=0/1'),
+    ])
+    expect(first.address).toEqual(ALL_0_0.toBase58())
+    expect(second.derivationPath).toEqual("44'/501'/0'/1'")
+    expect(mockOpenedPaths).toHaveLength(1)
+  })
+
+  it('refuses a signature of another key than the wallet address', async () => {
+    const [all] = connectLedgers(SEED_ALL)
+    const wallet = await LedgerWallet.instance('usb://ledger?key=0/0')
+    all!.behavior = { signSeed: SEED_OTHER }
+    const error = `Ledger signed with another key than ${ALL_0_0.toBase58()}`
+    await expect(
+      wallet.signTransactionMessage(transferTx(ALL_0_0).serializeMessage()),
+    ).rejects.toThrow(error)
+    await expect(
+      wallet.signOffchainMessage('hello', SystemProgram.programId.toBase58()),
+    ).rejects.toThrow(error)
   })
 
   it('selects device by Agave wallet id and keeps the explicit key path', async () => {

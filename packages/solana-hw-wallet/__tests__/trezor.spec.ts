@@ -230,6 +230,32 @@ describe('TrezorWallet', () => {
     })
   })
 
+  it('waits for a pending close before reopening connect', async () => {
+    connectTrezors(SEED_ALL)
+    const wallet = await toWeb3Wallet(
+      await TrezorWallet.instance('usb://trezor?key=0/0'),
+    )
+    const closing = closeTrezorConnect()
+    const tx = transferTx(wallet.publicKey)
+    await wallet.signTransaction(tx)
+    await closing
+
+    expect(tx.verifySignatures()).toBe(true)
+    expect(fakeTrezor.initCount).toBe(2)
+    expect(fakeTrezor.disposeCount).toBe(1)
+  })
+
+  it('refuses a signature of another key than the wallet address', async () => {
+    connectTrezors(SEED_ALL)
+    const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
+    fakeTrezor.signSeed = SEED_OTHER
+    const error = `Trezor signed with another key than ${ALL_0_0.toBase58()}`
+    await expect(
+      wallet.signTransactionMessage(transferTx(ALL_0_0).serializeMessage()),
+    ).rejects.toThrow(error)
+    await expect(wallet.signOffchainMessage('hello')).rejects.toThrow(error)
+  })
+
   it('refuses to sign when the device was swapped after close', async () => {
     connectTrezors(SEED_ALL)
     const wallet = await toWeb3Wallet(

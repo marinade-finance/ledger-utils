@@ -26,6 +26,8 @@ const UI_RESPONSE = {
 // in-process stand-in for the default export of @trezor/connect, keys derived from device seeds
 export class FakeTrezorConnect {
   public seeds: Buffer[] = []
+  // seed of the signing key, e.g. a device swapped for another seed after the wallet opened
+  public signSeed: Buffer | undefined
   public unacquired = 0
   public initCount = 0
   public disposeCount = 0
@@ -87,7 +89,7 @@ export class FakeTrezorConnect {
   }) {
     return this.respond('solanaSignTransaction', params, seed => ({
       signature: signEd25519(
-        deriveKeypair(seed, unharden(params.path)),
+        deriveKeypair(this.signSeed ?? seed, unharden(params.path)),
         Buffer.from(params.serializedTx, 'hex'),
       ).toString('hex'),
     }))
@@ -101,6 +103,10 @@ export class FakeTrezorConnect {
   }) {
     return this.respond('solanaSignMessage', params, seed => {
       const keypair = deriveKeypair(seed, unharden(params.path))
+      const signingKeypair = deriveKeypair(
+        this.signSeed ?? seed,
+        unharden(params.path),
+      )
       const signers = (params.signers ?? [keypair.address])
         .map(s => Buffer.from(getAddressEncoder().encode(address(s))))
         .sort((a, b) => Buffer.compare(a, b))
@@ -113,7 +119,7 @@ export class FakeTrezorConnect {
         Buffer.from(params.message, 'utf-8'),
       ])
       return {
-        signature: signEd25519(keypair, signedData).toString('hex'),
+        signature: signEd25519(signingKeypair, signedData).toString('hex'),
         signedData: signedData.toString('hex'),
       }
     })

@@ -1,3 +1,6 @@
+import { getPublicKeyFromAddress } from '@solana/addresses'
+import { verifySignature } from '@solana/keys'
+
 import type { SignatureDictionary, SignerConfig } from './wallet'
 import type { Address } from '@solana/addresses'
 import type { SignatureBytes } from '@solana/keys'
@@ -14,6 +17,27 @@ export function assertTransactionMessageVersion(
         'sign a legacy or v0 transaction instead',
     )
   }
+}
+
+// a device re-plugged with another seed after the wallet opened signs with another key
+export async function assertSignedBy(
+  address: Address,
+  bytes: Uint8Array,
+  signature: SignatureBytes,
+  device: string,
+): Promise<SignatureBytes> {
+  if (
+    !(await verifySignature(
+      await getPublicKeyFromAddress(address),
+      signature,
+      bytes,
+    ))
+  ) {
+    throw new Error(
+      `${device} signed with another key than ${address}, check the connected device`,
+    )
+  }
+  return signature
 }
 
 // one device signs one request at a time, the abort signal is checked before each device call

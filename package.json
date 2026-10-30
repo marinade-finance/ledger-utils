@@ -2,6 +2,7 @@
   "license": "ISC",
   "scripts": {
     "build": "pnpm -r build",
+    "clean": "pnpm -r exec rm -rf dist .tsbuildinfo",
     "test": "pnpm jest -- \"$FILE\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -10,7 +11,7 @@
     "check": "pnpm lint && pnpm format:check && pnpm -C packages/solana-hw-wallet typecheck:web3js-v3",
     "fix": "pnpm lint:fix && pnpm format",
     "prepare": "husky",
-    "publish:all": "pnpm build && pnpm test && pnpm publish -r"
+    "publish:all": "pnpm clean && pnpm build && pnpm test && pnpm publish -r"
   },
   "devDependencies": {
     "@marinade.finance/eslint-config": "1.4.1",

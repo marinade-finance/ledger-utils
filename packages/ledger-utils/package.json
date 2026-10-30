@@ -34,11 +34,11 @@
     "@marinade.finance/solana-hw-wallet": "workspace:^"
   },
   "devDependencies": {
-    "@marinade.finance/ts-common": "^5.7.0",
+    "@marinade.finance/ts-common": "^5.12.1",
     "@solana/web3.js": "^1.99.0"
   },
   "peerDependencies": {
-    "@marinade.finance/ts-common": "^5.7.0",
+    "@marinade.finance/ts-common": "^5.12.1",
     "@solana/web3.js": "^1.99.0 || ^3.1.0"
   }
 }

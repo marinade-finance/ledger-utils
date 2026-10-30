@@ -36,10 +36,20 @@ export async function resolveDevice<D extends HardwareDevice>({
 
   if (walletId === undefined) {
     if (devices.length > 1) {
-      const ids = await Promise.all(devices.map(d => d.getAddress([])))
+      const ids = await Promise.allSettled(devices.map(d => d.getAddress([])))
+      const unreadable = ids.filter(id => id.status === 'rejected').length
       throw new Error(
         `Multiple ${walletType} devices found, select one by wallet id: ` +
-          ids.map(id => `usb://${walletType}/${id}`).join(', '),
+          ids
+            .flatMap(id =>
+              id.status === 'fulfilled'
+                ? [`usb://${walletType}/${id.value}`]
+                : [],
+            )
+            .join(', ') +
+          (unreadable > 0
+            ? ` (${unreadable} more device${unreadable > 1 ? 's' : ''} cannot be read)`
+            : ''),
       )
     }
     return { device: firstDevice, derivationPath }

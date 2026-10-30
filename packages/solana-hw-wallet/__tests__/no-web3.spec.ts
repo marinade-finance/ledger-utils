@@ -22,6 +22,13 @@ import { MNEMONIC_ALL, mnemonicToSeed } from '../test-utils/slip10'
 jest.mock('@solana/web3.js', () => {
   throw new Error("Cannot find module '@solana/web3.js'")
 })
+jest.mock(
+  'class-validator',
+  () => {
+    throw new Error("Cannot find module 'class-validator'")
+  },
+  { virtual: true },
+)
 const mockLedgerDevices = new Map<string, FakeLedgerTransport>()
 jest.mock('@ledgerhq/hw-transport-node-hid-noevents', () => ({
   __esModule: true,
@@ -34,7 +41,7 @@ jest.mock('@ledgerhq/hw-transport-node-hid-noevents', () => ({
 const ALL_0_0 = address('14CCvQzQzHCVgZM3j9soPnXuJXh1RmCfwLVUcdfbZVBS')
 const APP_DOMAIN = '11111111111111111111111111111111'
 
-describe('without @solana/web3.js installed', () => {
+describe('without @solana/web3.js and class-validator installed', () => {
   let transport: FakeLedgerTransport
   let deviceCounter = 0
   beforeEach(() => {
