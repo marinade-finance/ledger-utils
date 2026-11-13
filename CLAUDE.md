@@ -9,6 +9,7 @@ pnpm workspace. `packages/solana-hw-wallet` is the library (Ledger + Trezor sign
 - `pnpm check` also typechecks `src` against web3.js 3.x (`typecheck:web3js-v3`).
 - `pnpm -C packages/solana-hw-wallet test:emulator` runs the Trezor firmware emulator e2e. It needs a running `trezor-user-env` container, locally under docker:
   `docker run -d --rm --name trezor-user-env --network host -e SDL_VIDEODRIVER=dummy -e XDG_RUNTIME_DIR=/var/tmp ghcr.io/trezor/trezor-user-env:0126ecbed6edc132a4210803707a66fd04add700`
+- `pnpm -C packages/solana-hw-wallet test:emulator:ledger` runs the Ledger e2e against the Solana app on Speculos. `bash packages/solana-hw-wallet/emulator/speculos.sh` builds the app into `build/ledger-app` once and starts the `speculos` container.
 
 ## SDK design
 
