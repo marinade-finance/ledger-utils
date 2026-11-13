@@ -7,6 +7,7 @@ import {
   SENDER_CHANNEL,
   SENDER_VECTORS,
 } from '../test-utils/ledger-dmk-vectors'
+import { createHIDframing } from '../test-utils/legacy-hid-framing'
 
 const hex = (value: string) => Buffer.from(value, 'hex')
 
@@ -138,5 +139,45 @@ describe('createResponseDecoder', () => {
     const decode = createResponseDecoder(RECEIVER_CHANNEL)
     decode(frames[0]!)
     expect(() => decode(frames[0]!)).toThrow('Invalid sequence')
+  })
+})
+
+describe('compared with the legacy hid-framing', () => {
+  function random(seed: number): (max: number) => number {
+    let state = seed
+    return max => {
+      state = (state * 1103515245 + 12345) % 0x80000000
+      return state % max
+    }
+  }
+
+  function randomCase(next: (max: number) => number) {
+    const channel = next(0xffff)
+    const message = Buffer.from(
+      Array.from({ length: 1 + next(2000) }, () => next(256)),
+    )
+    return { channel, message, legacy: createHIDframing(channel, FRAME_SIZE) }
+  }
+
+  it('encodes 200 random APDUs to the same frames', () => {
+    const next = random(1)
+    for (let i = 0; i < 200; i++) {
+      const { channel, message, legacy } = randomCase(next)
+      expect(encodeApdu(message, channel)).toEqual(legacy.makeBlocks(message))
+    }
+  })
+
+  it('decodes 200 random responses to the same message', () => {
+    const next = random(2)
+    for (let i = 0; i < 200; i++) {
+      const { channel, message, legacy } = randomCase(next)
+      const frames = legacy.makeBlocks(message)
+      const acc = frames.reduce(
+        (reduced, frame) => legacy.reduceResponse(reduced, frame),
+        undefined as Parameters<typeof legacy.reduceResponse>[0],
+      )
+      expect(legacy.getReducedResult(acc)).toEqual(message)
+      expect(decodeAll(channel, frames)).toEqual(message)
+    }
   })
 })
