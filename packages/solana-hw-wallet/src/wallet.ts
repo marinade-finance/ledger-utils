@@ -42,12 +42,3 @@ export interface HardwareWallet {
   ): Promise<readonly SignatureDictionary[]>
   confirmPublicKey(): Promise<Address>
 }
-
-export function serializeTransactionMessage(
-  tx: Transaction | VersionedTransaction,
-): Uint8Array {
-  // no instanceof, the transaction may come from a different @solana/web3.js copy
-  return 'serializeMessage' in tx
-    ? tx.serializeMessage()
-    : tx.message.serialize()
-}

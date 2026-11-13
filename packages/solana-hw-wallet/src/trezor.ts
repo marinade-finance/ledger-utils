@@ -9,6 +9,7 @@ import { getOffchainMessageDecoder } from '@solana/offchain-messages'
 
 import { resolveDevice } from './discovery'
 import {
+  assertShownAddress,
   assertSignedBy,
   assertTransactionMessageVersion,
   signEach,
@@ -134,7 +135,7 @@ export class TrezorWallet implements HardwareWallet {
   }
 
   get derivationPath(): string {
-    return 'm/' + formatDerivationPath(this.derivationIndexes)
+    return formatDerivationPath(this.derivationIndexes)
   }
 
   public async signTransactionMessage(
@@ -225,9 +226,10 @@ export class TrezorWallet implements HardwareWallet {
       this.logger,
       `Confirm the address on Trezor hardware wallet ${this.derivationPath}`,
     )
-    return this.withDevice(device =>
+    const shown = await this.withDevice(device =>
       device.getAddress(this.derivationIndexes, true),
     )
+    return assertShownAddress(this.address, shown, 'Trezor')
   }
 
   private async withApproval<R>(
@@ -353,9 +355,18 @@ async function openSession(
 
   // events are delivered after init resolves, initial devices connect before the transport start
   let transportTimeout: NodeJS.Timeout | undefined
+  let transportError = `no transport started within ${
+    TRANSPORT_START_TIMEOUT_MS / 1000
+  }s` as string | undefined
   const transportStarted = new Promise<void>(resolve => {
-    connect.on(TRANSPORT.START, () => resolve())
-    connect.on(TRANSPORT.ERROR, () => resolve())
+    connect.on(TRANSPORT.START, () => {
+      transportError = undefined
+      resolve()
+    })
+    connect.on(TRANSPORT.ERROR, event => {
+      transportError = event.error
+      resolve()
+    })
     transportTimeout = setTimeout(resolve, TRANSPORT_START_TIMEOUT_MS)
   })
   const paths: DevicePath[] = []
@@ -421,6 +432,12 @@ async function openSession(
     connect.dispose()
     throw new Error(
       'Trezor device is used by another application. Close Trezor Suite or other wallet and try again.',
+    )
+  }
+  if (paths.length === 0 && transportError !== undefined) {
+    connect.dispose()
+    throw new Error(
+      `Trezor transport failed to start: ${transportError}. On Linux check the Trezor udev rules.`,
     )
   }
   return { devices: paths.map(path => new TrezorDevice(connect, path)) }

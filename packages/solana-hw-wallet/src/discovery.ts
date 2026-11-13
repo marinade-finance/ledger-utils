@@ -85,12 +85,17 @@ export async function resolveDevice<D extends HardwareDevice>({
     }
   }
 
+  const [firstError] = deviceErrors
   if (deviceErrors.length === devices.length) {
-    throw deviceErrors[0]
+    throw firstError
   }
   throw new Error(
     `No ${walletType} device provides pubkey ${walletId} ` +
-      `as wallet id (${formatDerivationPath([])}) nor at derivation path ${formatDerivationPath(derivationPath)}`,
+      `as wallet id (${formatDerivationPath([])}) nor at derivation path ${formatDerivationPath(derivationPath)}` +
+      (firstError === undefined
+        ? ''
+        : `, ${deviceErrors.length} device${deviceErrors.length > 1 ? 's' : ''} cannot be read: ${String(deviceErrors[0])}`),
+    { cause: firstError },
   )
 }
 

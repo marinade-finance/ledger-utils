@@ -15,6 +15,8 @@ export type FakeLedgerBehavior = {
   signStatus?: number
   // seed of the signing key, e.g. a device swapped for another seed after the wallet opened
   signSeed?: Buffer
+  // seed of the returned addresses, e.g. a device answering for another seed after the wallet opened
+  addressSeed?: Buffer
 }
 
 export type SignRequest = { ins: number; path: number[]; message: Buffer }
@@ -44,7 +46,7 @@ export class FakeLedgerTransport extends Transport {
         this.displayedPaths.push(path)
       }
       return Buffer.concat([
-        deriveKeypair(this.seed, path).publicKey,
+        deriveKeypair(this.behavior.addressSeed ?? this.seed, path).publicKey,
         statusWord(0x9000),
       ])
     }

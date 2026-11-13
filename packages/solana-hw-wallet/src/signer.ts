@@ -40,6 +40,19 @@ export async function assertSignedBy(
   return signature
 }
 
+export function assertShownAddress(
+  address: Address,
+  shown: Address,
+  device: string,
+): Address {
+  if (shown !== address) {
+    throw new Error(
+      `${device} shows key ${shown} instead of ${address}, check the connected device`,
+    )
+  }
+  return shown
+}
+
 // one device signs one request at a time, the abort signal is checked before each device call
 export async function signEach(
   address: Address,

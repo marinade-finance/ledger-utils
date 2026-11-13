@@ -71,7 +71,7 @@ describe('TrezorWallet', () => {
     connectTrezors(SEED_ALL)
     const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
     expect(wallet.address).toEqual(ALL_0_0.toBase58())
-    expect(wallet.derivationPath).toEqual("m/44'/501'/0'/0'")
+    expect(wallet.derivationPath).toEqual("44'/501'/0'/0'")
     expect(fakeTrezor.initSettings).toMatchObject({
       manifest: { appName: '@marinade.finance/solana-hw-wallet' },
       pendingTransportEvent: true,
@@ -122,7 +122,7 @@ describe('TrezorWallet', () => {
     const wallet = await TrezorWallet.instance(
       `usb://trezor/${target.toBase58()}`,
     )
-    expect(wallet.derivationPath).toEqual("m/44'/501'/2'")
+    expect(wallet.derivationPath).toEqual("44'/501'/2'")
   })
 
   it('signs versioned transaction message', async () => {
@@ -173,6 +173,15 @@ describe('TrezorWallet', () => {
     expect(fakeTrezor.calls.at(-1)?.params.showOnTrezor).toBe(true)
   })
 
+  it('refuses to confirm when the device shows another key', async () => {
+    connectTrezors(SEED_ALL)
+    const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
+    fakeTrezor.addressSeed = SEED_OTHER
+    await expect(wallet.confirmPublicKey()).rejects.toThrow(
+      `instead of ${ALL_0_0.toBase58()}, check the connected device`,
+    )
+  })
+
   it('reports failure from connect', async () => {
     connectTrezors(SEED_ALL)
     const wallet = await toWeb3Wallet(
@@ -192,6 +201,31 @@ describe('TrezorWallet', () => {
     await expect(TrezorWallet.instance('usb://trezor')).rejects.toThrow(
       'Trezor device is used by another application',
     )
+  })
+
+  it('reports the transport error when no device is found', async () => {
+    fakeTrezor.transportError = 'LIBUSB_ERROR_ACCESS'
+    await expect(TrezorWallet.instance('usb://trezor')).rejects.toThrow(
+      'Trezor transport failed to start: LIBUSB_ERROR_ACCESS',
+    )
+    expect(fakeTrezor.disposeCount).toBe(1)
+  })
+
+  it('reports a transport that does not start in time', async () => {
+    jest.useFakeTimers()
+    try {
+      fakeTrezor.transportSilent = true
+      const opening = TrezorWallet.instance('usb://trezor').catch(
+        (e: unknown) => e,
+      )
+      await jest.advanceTimersByTimeAsync(10_000)
+      expect(String(await opening)).toContain(
+        'Trezor transport failed to start: no transport started within 10s',
+      )
+      expect(fakeTrezor.disposeCount).toBe(1)
+    } finally {
+      jest.useRealTimers()
+    }
   })
 
   it('reports no device found', async () => {

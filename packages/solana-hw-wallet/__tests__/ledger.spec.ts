@@ -12,13 +12,16 @@ import {
 
 const mockLedgerDevices = new Map<string, FakeLedgerTransport>()
 const mockOpenedPaths: string[] = []
+const mockUnopenablePaths = new Set<string>()
 jest.mock('@ledgerhq/hw-transport-node-hid-noevents', () => ({
   __esModule: true,
   getDevices: () => [...mockLedgerDevices.keys()].map(path => ({ path })),
   default: {
     open: (path: string) => {
       mockOpenedPaths.push(path)
-      return Promise.resolve(mockLedgerDevices.get(path))
+      return mockUnopenablePaths.has(path)
+        ? Promise.reject(new Error(`cannot open device with path ${path}`))
+        : Promise.resolve(mockLedgerDevices.get(path))
     },
   },
 }))
@@ -32,6 +35,7 @@ const ALL_0_0 = new PublicKey('14CCvQzQzHCVgZM3j9soPnXuJXh1RmCfwLVUcdfbZVBS')
 let deviceCounter = 0
 function connectLedgers(...seeds: Buffer[]): FakeLedgerTransport[] {
   mockLedgerDevices.clear()
+  mockUnopenablePaths.clear()
   return seeds.map(seed => {
     const transport = new FakeLedgerTransport(seed)
     mockLedgerDevices.set(`fake-ledger-${deviceCounter++}`, transport)
@@ -107,6 +111,32 @@ describe('LedgerWallet', () => {
     expect(mockOpenedPaths).toHaveLength(1)
   })
 
+  it('selects the device by wallet id when another device cannot be opened', async () => {
+    connectLedgers(SEED_OTHER, SEED_ALL)
+    mockUnopenablePaths.add([...mockLedgerDevices.keys()][0]!)
+    const wallet = await LedgerWallet.instance(
+      `usb://ledger/${ALL_BASE.toBase58()}?key=0/0`,
+    )
+    expect(wallet.address).toEqual(ALL_0_0.toBase58())
+  })
+
+  it('fails with the open error when no device can be opened', async () => {
+    connectLedgers(SEED_ALL)
+    mockUnopenablePaths.add([...mockLedgerDevices.keys()][0]!)
+    await expect(LedgerWallet.instance('usb://ledger')).rejects.toThrow(
+      'cannot open device with path',
+    )
+  })
+
+  it('opens the device again after its transport disconnected', async () => {
+    const [all] = connectLedgers(SEED_ALL)
+    await LedgerWallet.instance('usb://ledger?key=0/0')
+    mockOpenedPaths.length = 0
+    all!.emit('disconnect')
+    await LedgerWallet.instance('usb://ledger?key=0/0')
+    expect(mockOpenedPaths).toHaveLength(1)
+  })
+
   it('refuses a signature of another key than the wallet address', async () => {
     const [all] = connectLedgers(SEED_ALL)
     const wallet = await LedgerWallet.instance('usb://ledger?key=0/0')
@@ -156,6 +186,20 @@ describe('LedgerWallet', () => {
     expect(all!.signRequests).toHaveLength(0)
   })
 
+  it('reports the unreadable device when no readable device provides the pubkey', async () => {
+    const [locked] = connectLedgers(SEED_ALL, SEED_OTHER)
+    locked!.behavior = { status: 0x5515 }
+    const error: unknown = await LedgerWallet.instance(
+      `usb://ledger/${ALL_0_0.toBase58()}?key=0/0`,
+    ).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).toContain(
+      `No ledger device provides pubkey ${ALL_0_0.toBase58()}`,
+    )
+    expect((error as Error).message).toContain('1 device cannot be read')
+    expect((error as Error).cause).toMatchObject({ statusCode: 0x5515 })
+  })
+
   it('searches the derivation path when only the pubkey is provided', async () => {
     connectLedgers(SEED_OTHER, SEED_ALL)
     const target = new PublicKey(
@@ -187,6 +231,15 @@ describe('LedgerWallet', () => {
     const wallet = await LedgerWallet.instance('usb://ledger?key=0/0')
     expect(await wallet.confirmPublicKey()).toEqual(ALL_0_0.toBase58())
     expect(all!.displayedPaths).toEqual([[44, 501, 0, 0]])
+  })
+
+  it('refuses to confirm when the device shows another key', async () => {
+    const [all] = connectLedgers(SEED_ALL)
+    const wallet = await LedgerWallet.instance('usb://ledger?key=0/0')
+    all!.behavior = { addressSeed: SEED_OTHER }
+    await expect(wallet.confirmPublicKey()).rejects.toThrow(
+      `instead of ${ALL_0_0.toBase58()}, check the connected device`,
+    )
   })
 
   it.each([

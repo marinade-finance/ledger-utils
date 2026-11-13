@@ -85,6 +85,17 @@ With more devices connected the url has to contain the wallet id, the error mess
 Account search runs only when `key` is not set. It derives `44'/501'/a'` and `44'/501'/a'/c'` for `a, c <= 20` ([BIP-44 gap limit](https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#address-gap-limit)), so it takes a while.
 An explicit `key` is never replaced by the search.
 
+## Migrating from ledger-utils 3.x
+
+`@marinade.finance/ledger-utils` is replaced by this package.
+
+- `parseLedgerWallet` is `parseHardwareWallet`, it accepts `usb://trezor` urls too.
+- `LedgerWallet` is no longer an Anchor `Wallet`, wrap it with `toWeb3Wallet`. `publicKey` is `address`, `derivedPath` is `derivationPath`.
+- `usb://ledger` with more devices connected fails instead of taking the first one.
+- A pubkey not found at an explicit `key` path fails instead of starting the account search. The search covers two levels up to index 20, ledger-utils covered three levels up to index 10.
+- Known Ledger status errors are rethrown with a readable message and the original error as `cause`.
+- `signOffchainMessage` and `verifyOffchainMessage` for software keys moved to `@marinade.finance/web3js-kit`.
+
 ## Trezor in a CLI
 
 `@trezor/connect` keeps the Node.js event loop busy. The library closes it after one second without a wallet call and opens it again on the next call, so the CLI exits on its own. `closeTrezorConnect()` closes it right away.

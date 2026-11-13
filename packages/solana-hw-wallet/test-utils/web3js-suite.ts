@@ -19,7 +19,6 @@ import {
 } from './slip10'
 import { parseHardwareWallet } from '../src/cli'
 import { LedgerWallet } from '../src/ledger'
-import { serializeTransactionMessage } from '../src/wallet'
 
 const SEED_ALL = mnemonicToSeed(MNEMONIC_ALL)
 export const KEY_0_0 = deriveKeypair(SEED_ALL, [44, 501, 0, 0])
@@ -89,9 +88,10 @@ export function describeWeb3Wallet({
         Transaction | VersionedTransaction
       >([legacy, versioned])
 
-      const messages = [legacy, versioned].map(tx =>
-        Buffer.from(serializeTransactionMessage(tx)),
-      )
+      const messages = [
+        legacy.serializeMessage(),
+        Buffer.from(versioned.message.serialize()),
+      ]
       expect(ledger.signRequests.map(r => Buffer.from(r.message))).toEqual(
         messages,
       )
@@ -103,17 +103,15 @@ export function describeWeb3Wallet({
       ).toEqual(signEd25519(KEY_0_0, messages[1]!))
     })
 
-    it('fails on v1 transaction before reaching the device', async () => {
-      const ledger = connectLedger()
-      const wallet = (await parseHardwareWallet(LEDGER_0_0))!
-      const tx = new VersionedTransaction(
+    function v1Tx(payer: PublicKey): VersionedTransaction {
+      return new VersionedTransaction(
         new MessageV1({
           header: {
             numRequiredSignatures: 1,
             numReadonlySignedAccounts: 0,
             numReadonlyUnsignedAccounts: 1,
           },
-          staticAccountKeys: [wallet.publicKey, SystemProgram.programId],
+          staticAccountKeys: [payer, SystemProgram.programId],
           recentBlockhash: randomKey().toBase58(),
           compiledInstructions: [
             {
@@ -124,9 +122,31 @@ export function describeWeb3Wallet({
           ],
         }),
       )
+    }
 
-      await expect(wallet.signTransaction(tx)).rejects.toThrow(v1Error)
+    it('fails on v1 transaction before reaching the device', async () => {
+      const ledger = connectLedger()
+      const wallet = (await parseHardwareWallet(LEDGER_0_0))!
+
+      await expect(
+        wallet.signTransaction(v1Tx(wallet.publicKey)),
+      ).rejects.toThrow(v1Error)
       expect(ledger.signRequests).toHaveLength(0)
+    })
+
+    it('fails on a batch with a v1 transaction before signing any of it', async () => {
+      const ledger = connectLedger()
+      const wallet = (await parseHardwareWallet(LEDGER_0_0))!
+      const legacy = transferTx(wallet.publicKey)
+
+      await expect(
+        wallet.signAllTransactions<Transaction | VersionedTransaction>([
+          legacy,
+          v1Tx(wallet.publicKey),
+        ]),
+      ).rejects.toThrow(v1Error)
+      expect(ledger.signRequests).toHaveLength(0)
+      expect(legacy.signatures[0]?.signature).toBeNull()
     })
 
     it('signs an off-chain message with the hardware wallet of the parsed web3.js wallet', async () => {

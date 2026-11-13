@@ -9,6 +9,7 @@ import { signatureBytes } from '@solana/keys'
 
 import { resolveDevice } from './discovery'
 import {
+  assertShownAddress,
   assertSignedBy,
   assertTransactionMessageVersion,
   signEach,
@@ -171,13 +172,14 @@ export class LedgerWallet implements HardwareWallet {
 
   // Solana CLI --confirm-key: user verifies the address shown on the device
   public async confirmPublicKey(): Promise<Address> {
-    return this.withApproval(async () => {
+    const shown = await this.withApproval(async () => {
       const { address } = await this.device.api.getAddress(
         this.derivationPath,
         true,
       )
       return getAddressDecoder().decode(address)
     })
+    return assertShownAddress(this.address, shown, 'Ledger')
   }
 
   private async withApproval<R>(action: () => Promise<R>): Promise<R> {
@@ -251,7 +253,7 @@ async function loadLedgerModules(): Promise<{
 
 async function openLedgerDevices(): Promise<LedgerDevice[]> {
   const { Solana, TransportNodeHid, getDevices } = await loadLedgerModules()
-  const devices: LedgerDevice[] = []
+  const opening: { path: string; transport: Promise<Transport> }[] = []
   // node-hid device type is not part of the transport typings
   for (const { path } of getDevices() as { path?: string }[]) {
     if (path === undefined) {
@@ -266,12 +268,27 @@ async function openLedgerDevices(): Promise<LedgerDevice[]> {
             /* ignore errors on closing transport */
           })
         })
+        opened.on('disconnect', () => IN_LIB_TRANSPORT_CACHE.delete(path))
         return opened
       })
       IN_LIB_TRANSPORT_CACHE.set(path, transport)
       void transport.catch(() => IN_LIB_TRANSPORT_CACHE.delete(path))
     }
-    devices.push(new LedgerDevice(new Solana(await transport), path))
+    opening.push({ path, transport })
+  }
+  // a device held by another application must not hide the other devices
+  const opened = await Promise.allSettled(
+    opening.map(
+      async ({ path, transport }) =>
+        new LedgerDevice(new Solana(await transport), path),
+    ),
+  )
+  const devices = opened.flatMap(result =>
+    result.status === 'fulfilled' ? [result.value] : [],
+  )
+  const failed = opened.find(result => result.status === 'rejected')
+  if (devices.length === 0 && failed !== undefined) {
+    throw failed.reason
   }
   return devices
 }

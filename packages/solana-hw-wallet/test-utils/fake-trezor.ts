@@ -2,7 +2,8 @@ import { address, getAddressEncoder } from '@solana/addresses'
 
 import { deriveKeypair, signEd25519 } from './slip10'
 
-type Listener = (payload: { path: string; requestId?: number }) => void
+type Payload = { path: string; requestId?: number; error?: string }
+type Listener = (payload: Payload) => void
 type Call = { method: string; params: Record<string, unknown> }
 
 const DEVICE = {
@@ -28,7 +29,11 @@ export class FakeTrezorConnect {
   public seeds: Buffer[] = []
   // seed of the signing key, e.g. a device swapped for another seed after the wallet opened
   public signSeed: Buffer | undefined
+  public addressSeed: Buffer | undefined
   public unacquired = 0
+  public transportError: string | undefined
+  // neither start nor error, e.g. a transport that hangs
+  public transportSilent = false
   public initCount = 0
   public disposeCount = 0
   private devices: { path: string; seed: Buffer }[] = []
@@ -69,7 +74,14 @@ export class FakeTrezorConnect {
       for (let i = 0; i < this.unacquired; i++) {
         this.emit(DEVICE.CONNECT_UNACQUIRED, { path: `busy-${i}` })
       }
-      this.emit(TRANSPORT.START, { path: '' })
+      if (this.transportSilent) {
+        return
+      }
+      if (this.transportError === undefined) {
+        this.emit(TRANSPORT.START, { path: '' })
+      } else {
+        this.emit(TRANSPORT.ERROR, { path: '', error: this.transportError })
+      }
     }, 0)
   }
 
@@ -78,7 +90,10 @@ export class FakeTrezorConnect {
     path: number[]
   }) {
     return this.respond('solanaGetPublicKey', params, seed => ({
-      publicKeyBase58: deriveKeypair(seed, unharden(params.path)).address,
+      publicKeyBase58: deriveKeypair(
+        this.addressSeed ?? seed,
+        unharden(params.path),
+      ).address,
     }))
   }
 
@@ -157,7 +172,7 @@ export class FakeTrezorConnect {
     }
   }
 
-  private emit(event: string, payload: { path: string }): void {
+  private emit(event: string, payload: Payload): void {
     for (const listener of this.listeners.get(event) ?? []) {
       listener(payload)
     }

@@ -1,5 +1,3 @@
-import { serializeTransactionMessage } from './wallet'
-
 import type { HardwareWallet, Wallet } from './wallet'
 import type * as Web3Module from '@solana/web3.js'
 import type { Transaction, VersionedTransaction } from '@solana/web3.js'
@@ -30,16 +28,31 @@ export async function toWeb3Wallet(
     publicKey,
     hardwareWallet: wallet,
     signTransaction,
+    // signTransactions refuses an unsupported version before the first device call of the batch
     signAllTransactions: async <T extends Transaction | VersionedTransaction>(
       txs: T[],
     ): Promise<T[]> => {
-      const signedTxs: T[] = []
-      for (const tx of txs) {
-        signedTxs.push(await signTransaction(tx))
-      }
-      return signedTxs
+      const signatures = await wallet.signTransactions(
+        txs.map(tx => ({ messageBytes: serializeTransactionMessage(tx) })),
+      )
+      txs.forEach((tx, i) =>
+        tx.addSignature(
+          publicKey,
+          Buffer.from(signatures[i]?.[wallet.address] ?? []),
+        ),
+      )
+      return txs
     },
   }
+}
+
+function serializeTransactionMessage(
+  tx: Transaction | VersionedTransaction,
+): Uint8Array {
+  // no instanceof, the transaction may come from a different @solana/web3.js copy
+  return 'serializeMessage' in tx
+    ? tx.serializeMessage()
+    : tx.message.serialize()
 }
 
 export async function loadWeb3(): Promise<typeof Web3Module> {
