@@ -8,6 +8,7 @@ import {
   CantOpenDevice,
   DisconnectedDevice,
   DisconnectedDeviceDuringOperation,
+  TransportExchangeTimeoutError,
 } from '@ledgerhq/hw-transport/errors'
 import { HIDAsync, devicesAsync } from 'node-hid'
 
@@ -91,7 +92,10 @@ export default class TransportNodeHid extends Transport {
   ) => Promise<TransportNodeHid>) &
     typeof Transport.open
 
-  override async exchange(apdu: Buffer): Promise<Buffer> {
+  override async exchange(
+    apdu: Buffer,
+    { abortTimeoutMs }: { abortTimeoutMs?: number } = {},
+  ): Promise<Buffer> {
     return this.exchangeAtomicImpl(async () => {
       if (this.closed) {
         throw new DisconnectedDevice(DISCONNECTED)
@@ -103,7 +107,7 @@ export default class TransportNodeHid extends Transport {
         for (const frame of frames) {
           await this.io(this.device.write(Buffer.concat([REPORT_ID, frame])))
         }
-        const response = await this.readResponse()
+        const response = await this.readResponse(abortTimeoutMs)
         this.logger?.(`<= ${response.toString('hex')}`)
         return response
       } catch (e) {
@@ -121,10 +125,21 @@ export default class TransportNodeHid extends Transport {
     }
   }
 
-  private async readResponse(): Promise<Buffer> {
+  private async readResponse(abortTimeoutMs?: number): Promise<Buffer> {
+    const deadline =
+      abortTimeoutMs === undefined ? undefined : Date.now() + abortTimeoutMs
     const decode = createResponseDecoder(this.channel)
     for (;;) {
-      const frame = await this.io(this.device.read(READ_SLICE_MS))
+      const remainingMs =
+        deadline === undefined ? READ_SLICE_MS : deadline - Date.now()
+      if (remainingMs <= 0) {
+        throw new TransportExchangeTimeoutError(
+          `Ledger device did not respond within ${abortTimeoutMs} ms, the connection was closed`,
+        )
+      }
+      const frame = await this.io(
+        this.device.read(Math.min(remainingMs, READ_SLICE_MS)),
+      )
       const response =
         frame === undefined || frame.length === 0 ? undefined : decode(frame)
       if (response !== undefined) {

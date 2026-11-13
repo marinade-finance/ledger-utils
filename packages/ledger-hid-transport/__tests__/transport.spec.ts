@@ -7,6 +7,7 @@ import {
   CantOpenDevice,
   DisconnectedDevice,
   DisconnectedDeviceDuringOperation,
+  TransportExchangeTimeoutError,
   TransportRaceCondition,
 } from '@ledgerhq/hw-transport/errors'
 
@@ -338,5 +339,70 @@ describe('TransportNodeHid', () => {
     const transport = await TransportNodeHid.open('/dev/hidraw0', { logger })
     await transport.exchange(Buffer.from('e001', 'hex'))
     expect(logger.mock.calls).toEqual([['=> e001'], ['<= e0019000']])
+  })
+
+  describe('with abortTimeoutMs', () => {
+    const TIMEOUT =
+      'Ledger device did not respond within 50 ms, the connection was closed'
+
+    it('closes and emits disconnect once when the device does not respond', async () => {
+      const device = fakeNodeHid.device
+      device.respond = () => undefined
+      const transport = await TransportNodeHid.open('/dev/hidraw0')
+      const disconnect = jest.fn()
+      transport.on('disconnect', disconnect)
+
+      const error = await rejection(
+        transport.exchange(Buffer.from('e001', 'hex'), { abortTimeoutMs: 50 }),
+      )
+
+      expect(error).toBeInstanceOf(TransportExchangeTimeoutError)
+      expect(error.name).toBe('TransportExchangeTimeoutError')
+      expect(error.message).toBe(TIMEOUT)
+      expect(device.closeCount).toBe(1)
+      expect(disconnect).toHaveBeenCalledTimes(1)
+    })
+
+    it('never returns a late response to the next exchange', async () => {
+      const device = fakeNodeHid.device
+      device.respond = () => undefined
+      const transport = await TransportNodeHid.open('/dev/hidraw0')
+      const disconnect = jest.fn()
+      transport.on('disconnect', disconnect)
+      await rejection(
+        transport.exchange(Buffer.from('e001', 'hex'), { abortTimeoutMs: 50 }),
+      )
+      device.queueFrames(Buffer.alloc(64))
+      const writes = device.writes.length
+
+      const next = await rejection(
+        transport.exchange(Buffer.from('e002', 'hex')),
+      )
+
+      expect(next).toBeInstanceOf(DisconnectedDevice)
+      expect(next.message).toBe(DISCONNECTED)
+      expect(device.writes).toHaveLength(writes)
+      expect(disconnect).toHaveBeenCalledTimes(1)
+      await transport.close()
+      expect(device.closeCount).toBe(1)
+    })
+
+    it('reports the timeout when closing the device fails', async () => {
+      const device = fakeNodeHid.device
+      device.respond = () => undefined
+      device.failClose = new Error('close failed')
+      const transport = await TransportNodeHid.open('/dev/hidraw0')
+      const error = await rejection(
+        transport.exchange(Buffer.from('e001', 'hex'), { abortTimeoutMs: 50 }),
+      )
+      expect(error.message).toBe(TIMEOUT)
+    })
+
+    it('waits longer than one read slice without abortTimeoutMs', async () => {
+      fakeNodeHid.device.responseDelayMs = 1500
+      const transport = await TransportNodeHid.open('/dev/hidraw0')
+      const apdu = Buffer.from('e0010000', 'hex')
+      expect(await transport.exchange(apdu)).toEqual(echo(apdu))
+    })
   })
 })
