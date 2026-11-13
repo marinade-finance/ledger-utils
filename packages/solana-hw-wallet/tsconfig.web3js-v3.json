@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "paths": {
+      "@solana/web3.js": ["./node_modules/web3js-v3"]
+    }
+  },
+  "include": ["src/**/*"]
+}
