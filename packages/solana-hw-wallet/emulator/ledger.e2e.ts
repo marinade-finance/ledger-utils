@@ -8,43 +8,16 @@ import {
   Keypair,
   PublicKey,
   SystemProgram,
-  Transaction,
   TransactionInstruction,
   TransactionMessage,
 } from '@solana/web3.js'
 
-import { SpeculosTransport, navigate } from './speculos'
+import { ALL_0_0, KEY_0_0, legacyMessage, transfer } from './ledger-fixtures'
+import { APPROVE, REJECT, SpeculosTransport, navigate } from './speculos'
 import { LedgerWallet } from '../src/ledger'
-import {
-  MNEMONIC_ALL,
-  deriveKeypair,
-  mnemonicToSeed,
-  signEd25519,
-} from '../test-utils/slip10'
+import { signEd25519 } from '../test-utils/slip10'
 
-const ALL_0_0 = '14CCvQzQzHCVgZM3j9soPnXuJXh1RmCfwLVUcdfbZVBS'
 const MESSAGE = 'Hello, Ledger!'
-const KEY_0_0 = deriveKeypair(mnemonicToSeed(MNEMONIC_ALL), [44, 501, 0, 0])
-const APPROVE =
-  /^((Accept risk and (sign (transaction|message|operation))?)|(Sign (transaction|message|operation)))$/
-const REJECT = /^(Reject( (transaction|message|operation))?)$/
-
-function transfer(from: PublicKey): TransactionInstruction {
-  return SystemProgram.transfer({
-    fromPubkey: from,
-    toPubkey: Keypair.generate().publicKey,
-    lamports: 1,
-  })
-}
-
-function legacyMessage(instruction: TransactionInstruction): Uint8Array {
-  return new Transaction({
-    feePayer: new PublicKey(ALL_0_0),
-    recentBlockhash: Keypair.generate().publicKey.toBase58(),
-  })
-    .add(instruction)
-    .serializeMessage()
-}
 
 void describe('LedgerWallet on Speculos with the Solana app', () => {
   let transport: SpeculosTransport

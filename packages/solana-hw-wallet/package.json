@@ -35,6 +35,7 @@
     "test": "pnpm jest --config ../../jest.config.js --testPathPatterns=\"$(pwd)\"",
     "test:emulator": "tsc --build && node --test dist/emulator/trezor.e2e.js",
     "test:emulator:ledger": "tsc --build && node --test dist/emulator/ledger.e2e.js",
+    "test:uhid": "tsc --build && sudo env \"PATH=$PATH\" node --test --test-force-exit dist/emulator/ledger-uhid.e2e.js",
     "typecheck:web3js-v3": "tsc -p tsconfig.web3js-v3.json"
   },
   "dependencies": {

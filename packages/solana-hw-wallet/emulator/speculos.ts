@@ -10,6 +10,10 @@ const [APDU_HOST = '127.0.0.1', APDU_PORT = '9999'] = (
 const API_URL = process.env.SPECULOS_API ?? 'http://127.0.0.1:5000'
 const MAX_PRESSES = 40
 
+export const APPROVE =
+  /^((Accept risk and (sign (transaction|message|operation))?)|(Sign (transaction|message|operation)))$/
+export const REJECT = /^(Reject( (transaction|message|operation))?)$/
+
 // Speculos APDU TCP: request `u32BE length | apdu`, reply `u32BE data length | data | status word`
 export class SpeculosTransport extends Transport {
   private received = Buffer.alloc(0)
