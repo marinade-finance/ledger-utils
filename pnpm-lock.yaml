@@ -45,6 +45,18 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/ledger-hid-transport:
+    dependencies:
+      '@ledgerhq/devices':
+        specifier: ^8.19.0
+        version: 8.19.0
+      '@ledgerhq/hw-transport':
+        specifier: ^6.37.0
+        version: 6.37.0
+      node-hid:
+        specifier: ^3.4.0
+        version: 3.4.0
+
   packages/solana-hw-wallet:
     dependencies:
       '@marinade.finance/web3js-kit':
@@ -553,6 +565,9 @@ packages:
   '@ledgerhq/devices@8.18.1':
     resolution: {integrity: sha512-mOoW1neiE9/G+zbHbTkfRtYh7SHTUzxqVyCy4jMh2br/cBD56b6mFrQrj5xUXX6AYaw7yP1i/Wy/bGaHoBQkdA==}
 
+  '@ledgerhq/devices@8.19.0':
+    resolution: {integrity: sha512-tj5vHCXUXNd+4yePFd0+rwi39TaLDgBKxH0g5v+S0oDWk0UmaPolOVmQpy4Gt+DFTIG6Kx9AKEBaKYsreaVQKQ==}
+
   '@ledgerhq/errors@6.37.0':
     resolution: {integrity: sha512-T5yiKI5UX7ugeocdTF3TUsCIN2BH41Bio4ZeN410YFjFOf3es08n/5JyMzzKwzRgP0blG3HfBf7s7vJKqCSAeg==}
     deprecated: This package is no longer maintained and will not receive updates. Published versions remain available.
@@ -573,8 +588,14 @@ packages:
   '@ledgerhq/hw-transport@6.36.1':
     resolution: {integrity: sha512-glmZmmqrC/M9CWGJQvkiNP7piKquH3oySyymA8s7TBkejyuZezDq44phk8njhkWzhntOCADKrEp36mWcwYeIFQ==}
 
+  '@ledgerhq/hw-transport@6.37.0':
+    resolution: {integrity: sha512-J5es/iRPEl24dT4XU9w2EQu5Z0fwkoQbLY2a0T7Pm3wq9aLiYkD02ALj1R+yqMUZgI8LQb+77GvPj557n0i0NQ==}
+
   '@ledgerhq/logs@6.19.0':
     resolution: {integrity: sha512-kmWj18C7eTtuytdaWygzVrQm9EoD4YWuYnd/kY8stVBBAzRdJzrGlm013ijQF6I/kGLKlGY7JKmll6j32KGpfQ==}
+
+  '@ledgerhq/logs@6.20.0':
+    resolution: {integrity: sha512-Pp+s24tGEGR3ANA+qQM50vlAUH/SmAaxkpCw0pmYYUa/fcGggko+7c1+RvgpjA6PhB3XPKTmu9vQdVrROJXjuw==}
 
   '@marinade.finance/eslint-config@1.4.1':
     resolution: {integrity: sha512-S+8vJGDIVlgheV1ckfnA9l/AINJyy8CjJFEei5wMBHBXKv57ZbVZg4oeVDpszTzMBjlfwuZE9qUxYcB8e8uPAA==}
@@ -3868,6 +3889,11 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
+  node-hid@3.4.0:
+    resolution: {integrity: sha512-Br7EO3bJARAJBdtcsGzF/Vs5TjfbkaMdglqLQ+Rk9GOGgVqv5DxYUVH5znLerJU+OfBWw8sd552Ujcprz1bG9g==}
+    engines: {node: '>=10.16'}
+    hasBin: true
+
   node-int64@0.4.0:
     resolution: {integrity: sha512-O5lz91xSOeoXP6DulyHfllpq+Eg00MWitZIbtPfoSEvqIHdl5gfcY6hYzDWnj0qD5tz52PI08u9qUvSVeUBeHw==}
 
@@ -4010,6 +4036,11 @@ packages:
   pkg-dir@4.2.0:
     resolution: {integrity: sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==}
     engines: {node: '>=8'}
+
+  pkg-prebuilds@1.1.0:
+    resolution: {integrity: sha512-jyai+KTQ2OwbN6iRYw88XbYOMgtpoSYJpjYebx7d9ihqz3txNi3ucsBt3va0iVWe6svSlaqpijMHFF/eJCMZzg==}
+    engines: {node: '>= 14.15.0'}
+    hasBin: true
 
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
@@ -5293,6 +5324,10 @@ snapshots:
     dependencies:
       semver: 7.8.5
 
+  '@ledgerhq/devices@8.19.0':
+    dependencies:
+      semver: 7.8.5
+
   '@ledgerhq/errors@6.37.0': {}
 
   '@ledgerhq/hw-app-solana@7.12.0':
@@ -5327,7 +5362,15 @@ snapshots:
       '@ledgerhq/logs': 6.19.0
       events: 3.3.0
 
+  '@ledgerhq/hw-transport@6.37.0':
+    dependencies:
+      '@ledgerhq/devices': 8.19.0
+      '@ledgerhq/logs': 6.20.0
+      events: 3.3.0
+
   '@ledgerhq/logs@6.19.0': {}
+
+  '@ledgerhq/logs@6.20.0': {}
 
   '@marinade.finance/eslint-config@1.4.1(eslint@9.39.4)(jest@30.5.2(@types/node@22.20.5)(ts-node@10.9.2(@types/node@22.20.5)(typescript@5.9.3)))(prettier@3.9.9)(typescript@5.9.3)':
     dependencies:
@@ -9363,6 +9406,11 @@ snapshots:
       node-addon-api: 3.2.1
       prebuild-install: 7.1.3
 
+  node-hid@3.4.0:
+    dependencies:
+      node-addon-api: 8.9.2
+      pkg-prebuilds: 1.1.0
+
   node-int64@0.4.0: {}
 
   node-releases@2.0.60: {}
@@ -9513,6 +9561,8 @@ snapshots:
   pkg-dir@4.2.0:
     dependencies:
       find-up: 4.1.0
+
+  pkg-prebuilds@1.1.0: {}
 
   possible-typed-array-names@1.1.0: {}
 
