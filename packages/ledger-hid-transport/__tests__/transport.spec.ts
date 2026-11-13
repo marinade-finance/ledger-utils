@@ -1,7 +1,21 @@
-import { version as devicesVersion } from '@ledgerhq/devices/package.json'
+import { chmod, mkdtemp, writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
-import { getDevices } from '../src'
-import { fakeNodeHid, ledgerDevice } from '../test-utils/fake-hid'
+import { version as devicesVersion } from '@ledgerhq/devices/package.json'
+import {
+  CantOpenDevice,
+  DisconnectedDevice,
+  DisconnectedDeviceDuringOperation,
+  TransportRaceCondition,
+} from '@ledgerhq/hw-transport/errors'
+
+import TransportNodeHid, { getDevices } from '../src'
+import {
+  FakeHidDevice,
+  fakeNodeHid,
+  ledgerDevice,
+} from '../test-utils/fake-hid'
 
 import type * as FakeHidModule from '../test-utils/fake-hid'
 
@@ -12,16 +26,28 @@ jest.mock(
       .fakeNodeHid,
 )
 
+const DISCONNECTED = 'Ledger device is disconnected, reconnect it and retry'
+const DISCONNECTED_DURING_OPERATION =
+  'Ledger device was disconnected during the operation, reconnect it and retry'
+const OK = Buffer.from('9000', 'hex')
+
 const platform = process.platform
 
 function setPlatform(value: NodeJS.Platform): void {
   Object.defineProperty(process, 'platform', { value })
 }
 
+function echo(apdu: Buffer): Buffer {
+  return Buffer.concat([apdu, OK])
+}
+
 let devicesAsync: jest.SpiedFunction<typeof fakeNodeHid.devicesAsync>
 
 beforeEach(() => {
   fakeNodeHid.devices = []
+  fakeNodeHid.device = new FakeHidDevice(echo)
+  fakeNodeHid.openError = undefined
+  fakeNodeHid.opened = []
   devicesAsync = jest.spyOn(fakeNodeHid, 'devicesAsync')
 })
 
@@ -92,5 +118,225 @@ describe('getDevices', () => {
     const error = new Error('hid enumeration failed')
     devicesAsync.mockRejectedValueOnce(error)
     await expect(getDevices()).rejects.toBe(error)
+  })
+})
+
+describe('TransportNodeHid', () => {
+  async function unreadableFile(): Promise<string> {
+    const path = join(await mkdtemp(join(tmpdir(), 'ledger-hid-')), 'hidraw')
+    await writeFile(path, '')
+    await chmod(path, 0)
+    return path
+  }
+
+  async function rejection(promise: Promise<unknown>): Promise<Error> {
+    return promise.then(
+      () => {
+        throw new Error('expected a rejection')
+      },
+      (e: unknown) => e as Error,
+    )
+  }
+
+  function channelOf(device: FakeHidDevice): number {
+    return device.writes.at(-1)!.readUInt16BE(1)
+  }
+
+  function frame(channel: number, sequence: number, data: string): Buffer {
+    const result = Buffer.alloc(64)
+    result.writeUInt16BE(channel, 0)
+    result[2] = 0x05
+    result.writeUInt16BE(sequence, 3)
+    Buffer.from(data, 'hex').copy(result, 5)
+    return result
+  }
+
+  it('opens the device not exclusively', async () => {
+    await TransportNodeHid.open('/dev/hidraw0')
+    expect(fakeNodeHid.opened).toEqual([
+      { path: '/dev/hidraw0', options: { nonExclusive: true } },
+    ])
+  })
+
+  it('reports a device that cannot be opened', async () => {
+    const path = '/nonexistent/hidraw0'
+    fakeNodeHid.openError = new Error(`cannot open device with path ${path}`)
+    const error = await rejection(TransportNodeHid.open(path))
+    expect(error).toBeInstanceOf(CantOpenDevice)
+    expect(error.name).toBe('CantOpenDevice')
+    expect(error.message).toBe(
+      `Cannot open Ledger device ${path}: cannot open device with path ${path}`,
+    )
+    expect(error.cause).toBe(fakeNodeHid.openError)
+  })
+
+  it('points to the udev rules when the Linux device is not accessible', async () => {
+    setPlatform('linux')
+    const path = await unreadableFile()
+    fakeNodeHid.openError = new Error(`cannot open device with path ${path}`)
+    const error = await rejection(TransportNodeHid.open(path))
+    expect(error.message).toBe(
+      `Cannot open Ledger device ${path}: permission denied. ` +
+        'Install the Ledger udev rules: https://github.com/LedgerHQ/udev-rules',
+    )
+    expect(error.cause).toBe(fakeNodeHid.openError)
+  })
+
+  it('does not check file access on macOS', async () => {
+    setPlatform('darwin')
+    const path = await unreadableFile()
+    fakeNodeHid.openError = new Error('open failed')
+    expect((await rejection(TransportNodeHid.open(path))).message).toBe(
+      `Cannot open Ledger device ${path}: open failed`,
+    )
+  })
+
+  it('exchanges a single frame APDU with report id prefixed writes', async () => {
+    const transport = await TransportNodeHid.open('/dev/hidraw0')
+    const apdu = Buffer.from('e001000000', 'hex')
+    expect(await transport.exchange(apdu)).toEqual(echo(apdu))
+    expect(fakeNodeHid.device.writes).toHaveLength(1)
+    expect(fakeNodeHid.device.writes[0]).toHaveLength(65)
+    expect(fakeNodeHid.device.writes[0]![0]).toBe(0x00)
+  })
+
+  it('exchanges a multi frame APDU and response', async () => {
+    fakeNodeHid.device.respond = () => Buffer.alloc(300, 0xab)
+    const transport = await TransportNodeHid.open('/dev/hidraw0')
+    expect(await transport.exchange(Buffer.alloc(260, 0x01))).toEqual(
+      Buffer.alloc(300, 0xab),
+    )
+    expect(fakeNodeHid.device.writes).toHaveLength(5)
+    for (const write of fakeNodeHid.device.writes) {
+      expect(write).toHaveLength(65)
+      expect(write[0]).toBe(0x00)
+    }
+  })
+
+  it('exchanges APDUs back to back', async () => {
+    const transport = await TransportNodeHid.open('/dev/hidraw0')
+    const first = Buffer.from('e0010000', 'hex')
+    const second = Buffer.from('e0020000', 'hex')
+    expect(await transport.exchange(first)).toEqual(echo(first))
+    expect(await transport.exchange(second)).toEqual(echo(second))
+  })
+
+  it('refuses a concurrent exchange', async () => {
+    const transport = await TransportNodeHid.open('/dev/hidraw0')
+    const apdu = Buffer.from('e0010000', 'hex')
+    const first = transport.exchange(apdu)
+    const error = await rejection(transport.exchange(apdu))
+    expect(error).toBeInstanceOf(TransportRaceCondition)
+    expect(error.message).toBe(
+      'An action was already pending on the Ledger device. Please deny or reconnect.',
+    )
+    expect(await first).toEqual(echo(apdu))
+  })
+
+  it.each([
+    ['write', (device: FakeHidDevice) => (device.failWrite = new Error('w'))],
+    ['read', (device: FakeHidDevice) => (device.failRead = new Error('r'))],
+  ])('closes on %s failure and emits disconnect once', async (_, fail) => {
+    const transport = await TransportNodeHid.open('/dev/hidraw0')
+    const disconnect = jest.fn()
+    transport.on('disconnect', disconnect)
+    const cause = fail(fakeNodeHid.device)
+
+    const error = await rejection(
+      transport.exchange(Buffer.from('e001', 'hex')),
+    )
+
+    expect(error).toBeInstanceOf(DisconnectedDeviceDuringOperation)
+    expect(error.name).toBe('DisconnectedDeviceDuringOperation')
+    expect(error.message).toBe(DISCONNECTED_DURING_OPERATION)
+    expect(error.cause).toBe(cause)
+    expect(disconnect).toHaveBeenCalledTimes(1)
+    expect(fakeNodeHid.device.closeCount).toBe(1)
+
+    const next = await rejection(transport.exchange(Buffer.from('e001', 'hex')))
+    expect(next).toBeInstanceOf(DisconnectedDevice)
+    expect(next.message).toBe(DISCONNECTED)
+    expect(disconnect).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    [
+      'another channel',
+      'Invalid channel',
+      (c: number) => frame((c + 1) % 0xffff, 0, '00029000'),
+    ],
+    [
+      'a frame out of order',
+      'Invalid sequence',
+      (c: number) => frame(c, 1, '9000'),
+    ],
+  ])('closes on a response frame of %s', async (_, message, wrongFrame) => {
+    const device = fakeNodeHid.device
+    device.respond = () => {
+      device.queueFrames(wrongFrame(channelOf(device)))
+      return undefined
+    }
+    const transport = await TransportNodeHid.open('/dev/hidraw0')
+    const disconnect = jest.fn()
+    transport.on('disconnect', disconnect)
+
+    const error = await rejection(
+      transport.exchange(Buffer.from('e001', 'hex')),
+    )
+
+    expect(error.message).toBe(message)
+    expect(disconnect).toHaveBeenCalledTimes(1)
+    expect(device.closeCount).toBe(1)
+    expect(
+      (await rejection(transport.exchange(Buffer.from('e001', 'hex')))).message,
+    ).toBe(DISCONNECTED)
+  })
+
+  it('drops a stale frame before the exchange', async () => {
+    const transport = await TransportNodeHid.open('/dev/hidraw0')
+    fakeNodeHid.device.queueFrames(frame(0x4242, 0, '00025515'))
+    const apdu = Buffer.from('e0010000', 'hex')
+    expect(await transport.exchange(apdu)).toEqual(echo(apdu))
+  })
+
+  it('refuses an empty APDU and stays open', async () => {
+    const transport = await TransportNodeHid.open('/dev/hidraw0')
+    await expect(transport.exchange(Buffer.alloc(0))).rejects.toThrow(
+      'APDU is empty',
+    )
+    const apdu = Buffer.from('e0010000', 'hex')
+    expect(await transport.exchange(apdu)).toEqual(echo(apdu))
+  })
+
+  it('closes after the running exchange, once', async () => {
+    const device = fakeNodeHid.device
+    device.responseDelayMs = 50
+    const transport = await TransportNodeHid.open('/dev/hidraw0')
+    const apdu = Buffer.from('e0010000', 'hex')
+    const exchange = transport.exchange(apdu)
+    const closing = transport.close()
+    expect(await exchange).toEqual(echo(apdu))
+    await closing
+    await transport.close()
+    expect(device.closeCount).toBe(1)
+  })
+
+  it('refuses an exchange after close', async () => {
+    const transport = await TransportNodeHid.open('/dev/hidraw0')
+    await transport.close()
+    const error = await rejection(
+      transport.exchange(Buffer.from('e001', 'hex')),
+    )
+    expect(error).toBeInstanceOf(DisconnectedDevice)
+    expect(error.name).toBe('DisconnectedDevice')
+    expect(error.message).toBe(DISCONNECTED)
+    expect(fakeNodeHid.device.writes).toHaveLength(0)
+  })
+
+  it('traces APDUs to the logger', async () => {
+    const logger = jest.fn()
+    const transport = await TransportNodeHid.open('/dev/hidraw0', { logger })
+    await transport.exchange(Buffer.from('e001', 'hex'))
+    expect(logger.mock.calls).toEqual([['=> e001'], ['<= e0019000']])
   })
 })
