@@ -17,6 +17,8 @@ export type FakeLedgerBehavior = {
   signSeed?: Buffer
   // seed of the returned addresses, e.g. a device answering for another seed after the wallet opened
   addressSeed?: Buffer
+  // as ledger-hid-transport, a failed exchange emits disconnect and rejects
+  exchangeError?: Error
 }
 
 export type SignRequest = { ins: number; path: number[]; message: Buffer }
@@ -37,6 +39,10 @@ export class FakeLedgerTransport extends Transport {
   override async exchange(apdu: Buffer): Promise<Buffer> {
     const [, ins, p1, p2] = apdu
     const data = apdu.subarray(5, 5 + apdu[4]!)
+    if (this.behavior.exchangeError) {
+      this.emit('disconnect')
+      throw this.behavior.exchangeError
+    }
     if (this.behavior.status !== undefined) {
       return statusWord(this.behavior.status)
     }

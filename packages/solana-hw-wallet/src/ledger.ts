@@ -40,6 +40,7 @@ const APP_NOT_OPENED =
   'Solana application is not opened. Please, open the Solana app on the Ledger device first.'
 const LEDGER_STATUS_MESSAGES: Record<number, string> = {
   0x5515: LOCKED,
+  0x5303: LOCKED,
   0x6982: LOCKED,
   0x6985: 'Operation was rejected on the Ledger device.',
   0x6511: APP_NOT_OPENED,
@@ -222,9 +223,6 @@ export function toLedgerError(e: unknown): Error {
     message =
       'Ledger device seems not being acknowledged to have opened the manager. ' +
       'Please, open ledger manager first on your device.'
-  } else if (e.message.includes('read from a closed HID')) {
-    message =
-      'Ledger device cannot be open, it seems to be closed. Ensure no other program uses it.'
   }
   return message === undefined ? e : new Error(message, { cause: e })
 }

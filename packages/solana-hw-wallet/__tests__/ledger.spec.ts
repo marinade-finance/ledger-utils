@@ -1,3 +1,9 @@
+import {
+  CantOpenDevice,
+  DisconnectedDevice,
+  DisconnectedDeviceDuringOperation,
+  TransportExchangeTimeoutError,
+} from '@ledgerhq/hw-transport/errors'
 import { verifyOffchainMessage } from '@marinade.finance/web3js-kit'
 import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
 
@@ -12,7 +18,7 @@ import {
 
 const mockLedgerDevices = new Map<string, FakeLedgerTransport>()
 const mockOpenedPaths: string[] = []
-const mockUnopenablePaths = new Set<string>()
+const mockOpenErrors = new Map<string, Error>()
 jest.mock('@marinade.finance/ledger-hid-transport', () => ({
   __esModule: true,
   getDevices: () =>
@@ -20,8 +26,9 @@ jest.mock('@marinade.finance/ledger-hid-transport', () => ({
   default: {
     open: (path: string) => {
       mockOpenedPaths.push(path)
-      return mockUnopenablePaths.has(path)
-        ? Promise.reject(new Error(`cannot open device with path ${path}`))
+      const error = mockOpenErrors.get(path)
+      return error
+        ? Promise.reject(error)
         : Promise.resolve(mockLedgerDevices.get(path))
     },
   },
@@ -36,12 +43,16 @@ const ALL_0_0 = new PublicKey('14CCvQzQzHCVgZM3j9soPnXuJXh1RmCfwLVUcdfbZVBS')
 let deviceCounter = 0
 function connectLedgers(...seeds: Buffer[]): FakeLedgerTransport[] {
   mockLedgerDevices.clear()
-  mockUnopenablePaths.clear()
+  mockOpenErrors.clear()
   return seeds.map(seed => {
     const transport = new FakeLedgerTransport(seed)
     mockLedgerDevices.set(`fake-ledger-${deviceCounter++}`, transport)
     return transport
   })
+}
+
+function unopenable(path: string): void {
+  mockOpenErrors.set(path, new Error(`cannot open device with path ${path}`))
 }
 
 function transferTx(from: PublicKey): Transaction {
@@ -114,7 +125,7 @@ describe('LedgerWallet', () => {
 
   it('selects the device by wallet id when another device cannot be opened', async () => {
     connectLedgers(SEED_OTHER, SEED_ALL)
-    mockUnopenablePaths.add([...mockLedgerDevices.keys()][0]!)
+    unopenable([...mockLedgerDevices.keys()][0]!)
     const wallet = await LedgerWallet.instance(
       `usb://ledger/${ALL_BASE.toBase58()}?key=0/0`,
     )
@@ -123,7 +134,7 @@ describe('LedgerWallet', () => {
 
   it('fails with the open error when no device can be opened', async () => {
     connectLedgers(SEED_ALL)
-    mockUnopenablePaths.add([...mockLedgerDevices.keys()][0]!)
+    unopenable([...mockLedgerDevices.keys()][0]!)
     await expect(LedgerWallet.instance('usb://ledger')).rejects.toThrow(
       'cannot open device with path',
     )
@@ -245,6 +256,7 @@ describe('LedgerWallet', () => {
 
   it.each([
     [0x5515, 'Ledger device is locked'],
+    [0x5303, 'Ledger device is locked'],
     [0x6e01, 'Solana application is not opened'],
   ])('maps status 0x%s on connect', async (status, message) => {
     const [all] = connectLedgers(SEED_ALL)
@@ -266,4 +278,50 @@ describe('LedgerWallet', () => {
       wallet.signTransaction(transferTx(wallet.publicKey)),
     ).rejects.toThrow(message)
   })
+})
+
+describe('ledger-hid-transport errors', () => {
+  it('rejects the wallet with the open error of the transport', async () => {
+    connectLedgers(SEED_ALL)
+    const error = new CantOpenDevice(
+      'Cannot open Ledger device /dev/hidraw0: permission denied. ' +
+        'Install the Ledger udev rules: https://github.com/LedgerHQ/udev-rules',
+    )
+    mockOpenErrors.set([...mockLedgerDevices.keys()][0]!, error)
+    await expect(LedgerWallet.instance('usb://ledger')).rejects.toBe(error)
+  })
+
+  it.each([
+    [
+      DisconnectedDeviceDuringOperation,
+      'Ledger device was disconnected during the operation, reconnect it and retry',
+    ],
+    [
+      DisconnectedDevice,
+      'Ledger device is disconnected, reconnect it and retry',
+    ],
+    [
+      TransportExchangeTimeoutError,
+      'Ledger device did not respond within 50 ms, the connection was closed',
+    ],
+  ])(
+    'passes %p through and opens the device again',
+    async (ErrorClass, message) => {
+      const [all] = connectLedgers(SEED_ALL)
+      const wallet = await LedgerWallet.instance('usb://ledger?key=0/0')
+      const error = new ErrorClass(message)
+      all!.behavior = { exchangeError: error }
+
+      const rejection = wallet.signTransactionMessage(
+        transferTx(ALL_0_0).serializeMessage(),
+      )
+
+      await expect(rejection).rejects.toBe(error)
+      await expect(rejection).rejects.toThrow(message)
+      all!.behavior = {}
+      mockOpenedPaths.length = 0
+      await LedgerWallet.instance('usb://ledger?key=0/0')
+      expect(mockOpenedPaths).toHaveLength(1)
+    },
+  )
 })
