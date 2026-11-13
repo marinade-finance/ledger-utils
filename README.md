@@ -5,6 +5,7 @@
 TypeScript Ledger and Trezor signing for Solana Node.js CLI applications.
 
 - [solana-hw-wallet](packages/solana-hw-wallet/README.md) - the library
+- [ledger-hid-transport](packages/ledger-hid-transport/README.md) - the Ledger USB HID transport it uses
 
 ## Development
 
@@ -14,7 +15,7 @@ pnpm build
 pnpm test
 ```
 
-To publish, update versions in `packages/*/package.json` and run `pnpm publish:all`.
+To publish, update versions in `packages/*/package.json` and run `pnpm publish:all`. It publishes ledger-hid-transport before solana-hw-wallet, which depends on it.
 `@marinade.finance/ledger-utils` (3.x) was replaced by this library, once 1.0.0 is out mark it deprecated:
 
 ```sh

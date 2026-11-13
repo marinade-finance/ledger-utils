@@ -22,6 +22,8 @@ const { address } = await solana.getAddress("44'/501'/0'/0'")
 await transport.close()
 ```
 
+Ledger app libraries pin their own `@ledgerhq/hw-transport` version. The runtime class is the same, but when the pinned copy differs from the one this package resolves, TypeScript needs `new Solana(transport as unknown as ConstructorParameters<typeof Solana>[0])`.
+
 - `getDevices({ logger })` lists Ledger APDU interfaces by path. A product id unknown to `@ledgerhq/devices` is listed with `model` undefined and reported to the logger.
 - `TransportNodeHid.open(path, { logger })` opens the device non-exclusively. The logger also traces APDUs.
 - `exchange(apdu, { abortTimeoutMs })` waits for the user without a time limit unless `abortTimeoutMs` is set.

@@ -23,7 +23,7 @@ import type * as FakeLedgerModule from '../test-utils/fake-ledger'
 
 jest.mock('@solana/web3.js', () => jest.requireActual<object>('web3js-v3'))
 jest.mock(
-  '@ledgerhq/hw-transport-node-hid-noevents',
+  '@marinade.finance/ledger-hid-transport',
   () =>
     jest.requireActual<typeof FakeLedgerModule>('../test-utils/fake-ledger')
       .fakeLedgerHidModule,

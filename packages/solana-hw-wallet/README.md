@@ -13,7 +13,7 @@ Vendor libraries and `@solana/web3.js` are optional peer dependencies. Install o
 ```sh
 pnpm add @marinade.finance/solana-hw-wallet
 # Ledger
-pnpm add @ledgerhq/hw-app-solana @ledgerhq/hw-transport-node-hid-noevents
+pnpm add @ledgerhq/hw-app-solana @marinade.finance/ledger-hid-transport
 # Trezor
 pnpm add @trezor/connect
 # Anchor compatible Wallet (parseHardwareWallet, toWeb3Wallet)

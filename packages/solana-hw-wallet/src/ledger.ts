@@ -24,11 +24,13 @@ import type {
 } from './wallet'
 import type Solana from '@ledgerhq/hw-app-solana'
 import type Transport from '@ledgerhq/hw-transport'
-import type TransportNodeHid from '@ledgerhq/hw-transport-node-hid-noevents'
-import type { getDevices } from '@ledgerhq/hw-transport-node-hid-noevents'
+import type TransportNodeHid from '@marinade.finance/ledger-hid-transport'
+import type { getDevices } from '@marinade.finance/ledger-hid-transport'
 import type { LoggerPlaceholder } from '@marinade.finance/ts-common'
 import type { Address } from '@solana/addresses'
 import type { SignatureBytes } from '@solana/keys'
+
+type SolanaTransport = ConstructorParameters<typeof Solana>[0]
 
 const IN_LIB_TRANSPORT_CACHE: Map<string, Promise<Transport>> = new Map()
 
@@ -235,7 +237,7 @@ async function loadLedgerModules(): Promise<{
   try {
     const [solanaModule, transportModule] = await Promise.all([
       import('@ledgerhq/hw-app-solana'),
-      import('@ledgerhq/hw-transport-node-hid-noevents'),
+      import('@marinade.finance/ledger-hid-transport'),
     ])
     return {
       Solana: solanaModule.default,
@@ -245,7 +247,7 @@ async function loadLedgerModules(): Promise<{
   } catch (e) {
     throw new Error(
       'Ledger support requires packages @ledgerhq/hw-app-solana and ' +
-        '@ledgerhq/hw-transport-node-hid-noevents to be installed',
+        '@marinade.finance/ledger-hid-transport to be installed',
       { cause: e },
     )
   }
@@ -254,11 +256,7 @@ async function loadLedgerModules(): Promise<{
 async function openLedgerDevices(): Promise<LedgerDevice[]> {
   const { Solana, TransportNodeHid, getDevices } = await loadLedgerModules()
   const opening: { path: string; transport: Promise<Transport> }[] = []
-  // node-hid device type is not part of the transport typings
-  for (const { path } of getDevices() as { path?: string }[]) {
-    if (path === undefined) {
-      continue
-    }
+  for (const { path } of await getDevices()) {
     let transport = IN_LIB_TRANSPORT_CACHE.get(path)
     if (transport === undefined) {
       // concurrent wallets share one open, a second open of the HID path fails
@@ -280,7 +278,11 @@ async function openLedgerDevices(): Promise<LedgerDevice[]> {
   const opened = await Promise.allSettled(
     opening.map(
       async ({ path, transport }) =>
-        new LedgerDevice(new Solana(await transport), path),
+        new LedgerDevice(
+          // hw-app-solana pins its own @ledgerhq/hw-transport copy, the runtime class is identical
+          new Solana((await transport) as unknown as SolanaTransport),
+          path,
+        ),
     ),
   )
   const devices = opened.flatMap(result =>

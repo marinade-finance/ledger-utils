@@ -1,6 +1,7 @@
 # CLAUDE.md
 
 pnpm workspace. `packages/solana-hw-wallet` is the library (Ledger + Trezor signing for Node.js CLIs). It replaces `@marinade.finance/ledger-utils` 3.x, whose `parseLedgerWallet` is now `parseHardwareWallet`.
+`packages/ledger-hid-transport` is the Ledger USB HID transport it uses: a `@ledgerhq/hw-transport` `Transport` on node-hid 3 with its own HID framing and bounded reads, replacing the deprecated `@ledgerhq/hw-transport-node-hid-noevents`. Publish it before solana-hw-wallet.
 
 ## Commands
 

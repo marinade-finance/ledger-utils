@@ -42,9 +42,10 @@ import type {
 } from '@solana/signers'
 
 const mockLedgerDevices = new Map<string, FakeLedgerTransport>()
-jest.mock('@ledgerhq/hw-transport-node-hid-noevents', () => ({
+jest.mock('@marinade.finance/ledger-hid-transport', () => ({
   __esModule: true,
-  getDevices: () => [...mockLedgerDevices.keys()].map(path => ({ path })),
+  getDevices: () =>
+    Promise.resolve([...mockLedgerDevices.keys()].map(path => ({ path }))),
   default: {
     open: (path: string) => Promise.resolve(mockLedgerDevices.get(path)),
   },
