@@ -10,7 +10,12 @@ module.exports = [
     },
   },
   {
-    files: ['**/*.spec.ts', '**/__tests__/**/*.ts', '**/test-utils/**/*.ts'],
+    files: [
+      '**/*.spec.ts',
+      '**/__tests__/**/*.ts',
+      '**/test-utils/**/*.ts',
+      '**/emulator/**/*.ts',
+    ],
     rules: {
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
