@@ -97,6 +97,11 @@ jobs:
 
       - run: pnpm --filter @marinade.finance/solana-hw-wallet test:emulator:ledger
 
+      - name: Load the uhid kernel module
+        run: sudo modprobe uhid || (sudo apt-get update && sudo apt-get install -y linux-modules-extra-$(uname -r) && sudo modprobe uhid)
+
+      - run: pnpm --filter @marinade.finance/solana-hw-wallet test:uhid
+
       - name: Emulator logs
         if: failure()
         run: docker logs speculos
