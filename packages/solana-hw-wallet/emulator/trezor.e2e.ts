@@ -17,7 +17,6 @@ import {
   Keypair,
   PublicKey,
   SystemProgram,
-  Transaction,
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js'
@@ -31,6 +30,9 @@ import {
   mnemonicToSeed,
   signEd25519,
 } from '../test-utils/slip10'
+import { transferTx } from '../test-utils/transfer'
+
+import type { Transaction } from '@solana/web3.js'
 
 // trezor-user-env (ghcr.io/trezor/trezor-user-env) controller, see .github/workflows
 const USER_ENV_URL = process.env.TREZOR_USER_ENV_URL ?? 'ws://127.0.0.1:9001/'
@@ -141,19 +143,6 @@ function kitFeePayerMessage(signer: TrezorWallet) {
         createTransactionMessage({ version: 0 }),
       ),
     ),
-  )
-}
-
-function transferTx(from: PublicKey): Transaction {
-  return new Transaction({
-    feePayer: from,
-    recentBlockhash: Keypair.generate().publicKey.toBase58(),
-  }).add(
-    SystemProgram.transfer({
-      fromPubkey: from,
-      toPubkey: Keypair.generate().publicKey,
-      lamports: 1,
-    }),
   )
 }
 

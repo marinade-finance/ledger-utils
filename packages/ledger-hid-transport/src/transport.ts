@@ -22,9 +22,9 @@ const REPORT_ID = Buffer.from([0x00])
 // bounded reads, node-hid 3 cannot interrupt a blocking read and it would stall close
 const READ_SLICE_MS = 1000
 const UDEV_RULES_URL = 'https://github.com/LedgerHQ/udev-rules'
-const DISCONNECTED = 'Ledger device is disconnected, reconnect it and retry'
+const DISCONNECTED = 'Ledger device connection is closed, open the device again'
 const DISCONNECTED_DURING_OPERATION =
-  'Ledger device was disconnected during the operation, reconnect it and retry'
+  'Ledger device was disconnected during the operation, reconnect it and open it again'
 
 export type TransportLogger = (message: string) => void
 

@@ -21,6 +21,7 @@ export async function resolveDevice<D extends HardwareDevice>({
   derivationPath,
   explicitKey,
   logger,
+  unopened = [],
 }: {
   walletType: WalletType
   devices: D[]
@@ -28,16 +29,21 @@ export async function resolveDevice<D extends HardwareDevice>({
   derivationPath: number[]
   explicitKey: boolean
   logger: LoggerPlaceholder | undefined
+  unopened?: unknown[]
 }): Promise<{ device: D; derivationPath: number[] }> {
   const [firstDevice] = devices
   if (firstDevice === undefined) {
+    if (unopened.length > 0) {
+      throw unopened[0]
+    }
     throw new Error(`No ${walletType} device found`)
   }
 
   if (walletId === undefined) {
-    if (devices.length > 1) {
+    if (devices.length + unopened.length > 1) {
       const ids = await Promise.allSettled(devices.map(d => d.getAddress([])))
-      const unreadable = ids.filter(id => id.status === 'rejected').length
+      const unreadable =
+        ids.filter(id => id.status === 'rejected').length + unopened.length
       throw new Error(
         `Multiple ${walletType} devices found, select one by wallet id: ` +
           ids
@@ -55,7 +61,7 @@ export async function resolveDevice<D extends HardwareDevice>({
     return { device: firstDevice, derivationPath }
   }
 
-  const deviceErrors: unknown[] = []
+  const deviceErrors = new Map<D, unknown>()
   for (const device of devices) {
     try {
       if ((await device.getAddress([])) === walletId) {
@@ -69,15 +75,16 @@ export async function resolveDevice<D extends HardwareDevice>({
       }
     } catch (e) {
       logDebug(logger, `Failed to read ${walletType} device: ${String(e)}`)
-      deviceErrors.push(e)
+      deviceErrors.set(device, e)
     }
   }
 
   if (!explicitKey) {
     const searched = await searchDerivationPath({
-      devices,
+      devices: devices.filter(d => !deviceErrors.has(d)),
       walletId,
       derivationPath,
+      deviceErrors,
       logger,
     })
     if (searched !== null) {
@@ -85,8 +92,9 @@ export async function resolveDevice<D extends HardwareDevice>({
     }
   }
 
-  const [firstError] = deviceErrors
-  if (deviceErrors.length === devices.length) {
+  const errors = [...unopened, ...deviceErrors.values()]
+  const [firstError] = errors
+  if (errors.length === devices.length + unopened.length) {
     throw firstError
   }
   throw new Error(
@@ -94,7 +102,7 @@ export async function resolveDevice<D extends HardwareDevice>({
       `as wallet id (${formatDerivationPath([])}) nor at derivation path ${formatDerivationPath(derivationPath)}` +
       (firstError === undefined
         ? ''
-        : `, ${deviceErrors.length} device${deviceErrors.length > 1 ? 's' : ''} cannot be read: ${String(deviceErrors[0])}`),
+        : `, ${errors.length} device${errors.length > 1 ? 's' : ''} cannot be read: ${String(errors[0])}`),
     { cause: firstError },
   )
 }
@@ -103,11 +111,13 @@ async function searchDerivationPath<D extends HardwareDevice>({
   devices,
   walletId,
   derivationPath,
+  deviceErrors,
   logger,
 }: {
   devices: D[]
   walletId: Address
   derivationPath: number[]
+  deviceErrors: Map<D, unknown>
   logger: LoggerPlaceholder | undefined
 }): Promise<{ device: D; derivationPath: number[] } | null> {
   logInfo(
@@ -124,7 +134,8 @@ async function searchDerivationPath<D extends HardwareDevice>({
       let pubkey: Address
       try {
         pubkey = await device.getAddress(combination)
-      } catch {
+      } catch (e) {
+        deviceErrors.set(device, e)
         break
       }
       if (pubkey === walletId) {

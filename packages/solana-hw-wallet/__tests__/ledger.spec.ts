@@ -5,7 +5,7 @@ import {
   TransportExchangeTimeoutError,
 } from '@ledgerhq/hw-transport/errors'
 import { verifyOffchainMessage } from '@marinade.finance/web3js-kit'
-import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js'
+import { PublicKey, SystemProgram } from '@solana/web3.js'
 
 import { LedgerWallet } from '../src/ledger'
 import { toWeb3Wallet } from '../src/web3js'
@@ -15,6 +15,7 @@ import {
   deriveKeypair,
   mnemonicToSeed,
 } from '../test-utils/slip10'
+import { transferTx } from '../test-utils/transfer'
 
 const mockLedgerDevices = new Map<string, FakeLedgerTransport>()
 const mockOpenedPaths: string[] = []
@@ -53,20 +54,6 @@ function connectLedgers(...seeds: Buffer[]): FakeLedgerTransport[] {
 
 function unopenable(path: string): void {
   mockOpenErrors.set(path, new Error(`cannot open device with path ${path}`))
-}
-
-function transferTx(from: PublicKey): Transaction {
-  const tx = new Transaction({
-    feePayer: from,
-    recentBlockhash: Keypair.generate().publicKey.toBase58(),
-  })
-  return tx.add(
-    SystemProgram.transfer({
-      fromPubkey: from,
-      toPubkey: Keypair.generate().publicKey,
-      lamports: 1,
-    }),
-  )
 }
 
 describe('LedgerWallet', () => {
@@ -130,6 +117,16 @@ describe('LedgerWallet', () => {
       `usb://ledger/${ALL_BASE.toBase58()}?key=0/0`,
     )
     expect(wallet.address).toEqual(ALL_0_0.toBase58())
+  })
+
+  it('fails on multiple devices without wallet id when one cannot be opened', async () => {
+    const [other] = connectLedgers(SEED_OTHER, SEED_ALL)
+    unopenable([...mockLedgerDevices.keys()][1]!)
+    await expect(LedgerWallet.instance('usb://ledger')).rejects.toThrow(
+      'Multiple ledger devices found, select one by wallet id: ' +
+        `usb://ledger/${deriveKeypair(SEED_OTHER, [44, 501]).address} (1 more device cannot be read)`,
+    )
+    expect(other!.signRequests).toHaveLength(0)
   })
 
   it('fails with the open error when no device can be opened', async () => {
@@ -224,6 +221,25 @@ describe('LedgerWallet', () => {
     expect(wallet.derivationPath).toEqual("44'/501'/3'/1'")
   })
 
+  it('reports a device that fails during the derivation path search', async () => {
+    const [all] = connectLedgers(SEED_ALL)
+    const target = new PublicKey(
+      deriveKeypair(SEED_ALL, [44, 501, 3, 1]).publicKey,
+    )
+    const exchange = all!.exchange.bind(all)
+    let exchanges = 0
+    jest.spyOn(all!, 'exchange').mockImplementation(apdu => {
+      if (++exchanges > 4) {
+        all!.behavior = { status: 0x5515 }
+      }
+      return exchange(apdu)
+    })
+    await expect(
+      LedgerWallet.instance(`usb://ledger/${target.toBase58()}`),
+    ).rejects.toThrow('Ledger device is locked')
+    expect(exchanges).toBeGreaterThan(4)
+  })
+
   it('signs chunked off-chain message verifiable as v0', async () => {
     const [all] = connectLedgers(SEED_ALL)
     const wallet = await LedgerWallet.instance('usb://ledger?key=0/0')
@@ -294,11 +310,11 @@ describe('ledger-hid-transport errors', () => {
   it.each([
     [
       DisconnectedDeviceDuringOperation,
-      'Ledger device was disconnected during the operation, reconnect it and retry',
+      'Ledger device was disconnected during the operation, reconnect it and open it again',
     ],
     [
       DisconnectedDevice,
-      'Ledger device is disconnected, reconnect it and retry',
+      'Ledger device connection is closed, open the device again',
     ],
     [
       TransportExchangeTimeoutError,

@@ -86,10 +86,11 @@ export class LedgerWallet implements HardwareWallet {
       throw new Error(`Not a Ledger wallet url: ${ledgerUrl}`)
     }
     try {
-      const devices = await openLedgerDevices()
+      const { devices, unopened } = await openLedgerDevices()
       const { device, derivationPath } = await resolveDevice({
         walletType: WalletType.LEDGER,
         devices,
+        unopened,
         walletId: parsed.walletId,
         derivationPath: parsed.derivationPath,
         explicitKey: parsed.explicitKey,
@@ -251,13 +252,16 @@ async function loadLedgerModules(): Promise<{
   }
 }
 
-async function openLedgerDevices(): Promise<LedgerDevice[]> {
+async function openLedgerDevices(): Promise<{
+  devices: LedgerDevice[]
+  unopened: unknown[]
+}> {
   const { Solana, TransportNodeHid, getDevices } = await loadLedgerModules()
   const opening: { path: string; transport: Promise<Transport> }[] = []
   for (const { path } of await getDevices()) {
     let transport = IN_LIB_TRANSPORT_CACHE.get(path)
     if (transport === undefined) {
-      // concurrent wallets share one open, a second open of the HID path fails
+      // concurrent wallets share one transport, two handles on one path would interleave frames
       transport = TransportNodeHid.open(path).then(opened => {
         scheduleOnExit(() => {
           opened.close().catch(() => {
@@ -272,7 +276,7 @@ async function openLedgerDevices(): Promise<LedgerDevice[]> {
     }
     opening.push({ path, transport })
   }
-  // a device held by another application must not hide the other devices
+  // a device held by another application must not hide the other devices, it counts as unreadable
   const opened = await Promise.allSettled(
     opening.map(
       async ({ path, transport }) =>
@@ -283,12 +287,12 @@ async function openLedgerDevices(): Promise<LedgerDevice[]> {
         ),
     ),
   )
-  const devices = opened.flatMap(result =>
-    result.status === 'fulfilled' ? [result.value] : [],
-  )
-  const failed = opened.find(result => result.status === 'rejected')
-  if (devices.length === 0 && failed !== undefined) {
-    throw failed.reason
+  return {
+    devices: opened.flatMap(result =>
+      result.status === 'fulfilled' ? [result.value] : [],
+    ),
+    unopened: opened.flatMap(result =>
+      result.status === 'rejected' ? [result.reason as unknown] : [],
+    ),
   }
-  return devices
 }

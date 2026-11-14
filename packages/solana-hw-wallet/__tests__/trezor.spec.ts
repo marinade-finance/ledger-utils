@@ -3,8 +3,6 @@ import { address } from '@solana/addresses'
 import {
   Keypair,
   PublicKey,
-  SystemProgram,
-  Transaction,
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js'
@@ -15,6 +13,7 @@ import {
   deriveKeypair,
   mnemonicToSeed,
 } from '../test-utils/slip10'
+import { transferTx } from '../test-utils/transfer'
 
 import type * as TrezorModule from '../src/trezor'
 import type * as FakeTrezorModule from '../test-utils/fake-trezor'
@@ -51,19 +50,6 @@ afterEach(async () => {
 
 function connectTrezors(...seeds: Buffer[]): void {
   fakeTrezor.seeds = seeds
-}
-
-function transferTx(from: PublicKey): Transaction {
-  return new Transaction({
-    feePayer: from,
-    recentBlockhash: Keypair.generate().publicKey.toBase58(),
-  }).add(
-    SystemProgram.transfer({
-      fromPubkey: from,
-      toPubkey: Keypair.generate().publicKey,
-      lamports: 1,
-    }),
-  )
 }
 
 describe('TrezorWallet', () => {

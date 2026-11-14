@@ -27,9 +27,9 @@ jest.mock(
       .fakeNodeHid,
 )
 
-const DISCONNECTED = 'Ledger device is disconnected, reconnect it and retry'
+const DISCONNECTED = 'Ledger device connection is closed, open the device again'
 const DISCONNECTED_DURING_OPERATION =
-  'Ledger device was disconnected during the operation, reconnect it and retry'
+  'Ledger device was disconnected during the operation, reconnect it and open it again'
 const OK = Buffer.from('9000', 'hex')
 
 const platform = process.platform

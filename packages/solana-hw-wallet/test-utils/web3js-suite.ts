@@ -5,7 +5,6 @@ import {
   MessageV1,
   PublicKey,
   SystemProgram,
-  Transaction,
   TransactionMessage,
   VersionedTransaction,
 } from '@solana/web3.js'
@@ -17,8 +16,11 @@ import {
   mnemonicToSeed,
   signEd25519,
 } from './slip10'
+import { transferTx } from './transfer'
 import { parseHardwareWallet } from '../src/cli'
 import { LedgerWallet } from '../src/ledger'
+
+import type { Transaction } from '@solana/web3.js'
 
 const SEED_ALL = mnemonicToSeed(MNEMONIC_ALL)
 export const KEY_0_0 = deriveKeypair(SEED_ALL, [44, 501, 0, 0])
@@ -34,21 +36,6 @@ export function connectLedger(): FakeLedgerTransport {
 
 export function randomKey(): PublicKey {
   return new PublicKey(randomBytes(32))
-}
-
-// the blockhash constructor exists in @solana/web3.js 1.99 and 3.x
-export function transferTx(from: PublicKey): Transaction {
-  return new Transaction({
-    feePayer: from,
-    blockhash: randomKey().toBase58(),
-    lastValidBlockHeight: 0,
-  }).add(
-    SystemProgram.transfer({
-      fromPubkey: from,
-      toPubkey: randomKey(),
-      lamports: 1,
-    }),
-  )
 }
 
 /**
