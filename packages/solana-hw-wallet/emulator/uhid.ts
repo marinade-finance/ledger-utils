@@ -35,7 +35,11 @@ export function createUhidLedger(
   const onFrame = (frame: Buffer): void => {
     const channel = frame.readUInt16BE(0)
     if (frame.readUInt16BE(3) === 0) {
-      request = { length: frame.readUInt16BE(5), data: frame.subarray(7) }
+      // frame is a view of the reused event buffer, the next read overwrites it
+      request = {
+        length: frame.readUInt16BE(5),
+        data: Buffer.from(frame.subarray(7)),
+      }
     } else if (request !== undefined) {
       request.data = Buffer.concat([request.data, frame.subarray(5)])
     }
