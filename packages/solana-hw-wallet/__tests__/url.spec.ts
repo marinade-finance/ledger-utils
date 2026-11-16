@@ -71,6 +71,7 @@ describe('parseWalletUrl', () => {
     ["usb://trezor?key=m/44'/501'/2'", WalletType.TREZOR, undefined, [2], true],
     ["usb://ledger?key=44'/501'", WalletType.LEDGER, undefined, [], true],
     ['  usb://Ledger?key=3  ', WalletType.LEDGER, undefined, [3], true],
+    ['usb://ledger?key=0/1//', WalletType.LEDGER, undefined, [0, 1], true],
   ])('parses %s', (url, walletType, walletId, derivationPath, explicitKey) => {
     expect(parseWalletUrl(url)).toEqual({
       walletType,
@@ -100,6 +101,14 @@ describe('parseWalletUrl', () => {
     ['usb://ledger?key=2147483648', 'being a set of numbers delimited'],
   ])('rejects %s', (url, message) => {
     expect(() => parseWalletUrl(url)).toThrow(message)
+  })
+
+  it('rejects a key of many slashes in linear time', () => {
+    const started = Date.now()
+    expect(() =>
+      parseWalletUrl(`usb://ledger?key=0${'/'.repeat(100_000)}x`),
+    ).toThrow('being a set of numbers delimited')
+    expect(Date.now() - started).toBeLessThan(1000)
   })
 })
 

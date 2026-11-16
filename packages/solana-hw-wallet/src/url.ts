@@ -111,11 +111,16 @@ function parseQueryKey(
 }
 
 function parseDerivationPath(url: string, key: string): number[] {
-  const path = key
+  const prefixless = key
     .trim()
     .replace(/^\/+/, '')
     .replace(SOLANA_BIP44_PREFIX_REGEXP, '')
-    .replace(/\/+$/, '')
+  // a /\/+$/ regex is quadratic on many slashes that do not end the key
+  let end = prefixless.length
+  while (end > 0 && prefixless[end - 1] === '/') {
+    end--
+  }
+  const path = prefixless.slice(0, end)
   if (path === '') {
     return []
   }
