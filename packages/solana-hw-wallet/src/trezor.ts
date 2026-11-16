@@ -321,6 +321,11 @@ async function withSession<R>(
 
 function unwrap<T>(response: TrezorResponse<T>): T {
   if (!response.success) {
+    if (response.error.code === 'Device_FwException') {
+      throw new Error(
+        'Trezor firmware is too old for this action, update it in Trezor Suite (Device_FwException)',
+      )
+    }
     throw new Error(
       `Trezor: ${response.error.message}` +
         (response.error.code ? ` (${response.error.code})` : ''),

@@ -182,6 +182,18 @@ describe('TrezorWallet', () => {
     ).rejects.toThrow('Trezor: Cancelled (Failure_ActionCancelled)')
   })
 
+  it('reports firmware too old for the action', async () => {
+    connectTrezors(SEED_ALL)
+    const wallet = await TrezorWallet.instance('usb://trezor')
+    fakeTrezor.failure = {
+      message: 'ui-event_firmware_old',
+      code: 'Device_FwException',
+    }
+    await expect(wallet.signOffchainMessage('hello')).rejects.toThrow(
+      'Trezor firmware is too old for this action, update it in Trezor Suite (Device_FwException)',
+    )
+  })
+
   it('reports device used by another application', async () => {
     fakeTrezor.unacquired = 1
     await expect(TrezorWallet.instance('usb://trezor')).rejects.toThrow(
