@@ -105,7 +105,15 @@ function parseQueryKey(
           `Only a single query parameter "key" is supported, got "${param}".`,
       )
     }
-    key = value.join('=')
+    // the Solana CLI percent-decodes query values, e.g. a URLSearchParams key=0%2F0
+    try {
+      key = decodeURIComponent(value.join('='))
+    } catch (e) {
+      throw new Error(
+        `Invalid hardware wallet url "${url}". Malformed percent-encoding in "${param}".`,
+        { cause: e },
+      )
+    }
   }
   return key
 }

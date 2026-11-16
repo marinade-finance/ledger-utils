@@ -66,6 +66,7 @@ export async function getDevices({
 export default class TransportNodeHid extends Transport {
   private readonly channel = Math.floor(Math.random() * 0xffff)
   private closed = false
+  private closing = false
 
   private constructor(
     private readonly device: HIDAsync,
@@ -97,7 +98,7 @@ export default class TransportNodeHid extends Transport {
     { abortTimeoutMs }: { abortTimeoutMs?: number } = {},
   ): Promise<Buffer> {
     return this.exchangeAtomicImpl(async () => {
-      if (this.closed) {
+      if (this.closed || this.closing) {
         throw new DisconnectedDevice(DISCONNECTED)
       }
       const frames = encodeApdu(apdu, this.channel)
@@ -118,6 +119,8 @@ export default class TransportNodeHid extends Transport {
   }
 
   override async close(): Promise<void> {
+    // an idle transport has no busy promise, an exchange could start before the await resumes
+    this.closing = true
     await this.exchangeBusyPromise
     if (!this.closed) {
       this.closed = true

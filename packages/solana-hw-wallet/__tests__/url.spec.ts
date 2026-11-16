@@ -72,6 +72,14 @@ describe('parseWalletUrl', () => {
     ["usb://ledger?key=44'/501'", WalletType.LEDGER, undefined, [], true],
     ['  usb://Ledger?key=3  ', WalletType.LEDGER, undefined, [3], true],
     ['usb://ledger?key=0/1//', WalletType.LEDGER, undefined, [0, 1], true],
+    ['usb://ledger?key=0%2F0', WalletType.LEDGER, undefined, [0, 0], true],
+    [
+      'usb://trezor?key=0%27%2F1%27',
+      WalletType.TREZOR,
+      undefined,
+      [0, 1],
+      true,
+    ],
   ])('parses %s', (url, walletType, walletId, derivationPath, explicitKey) => {
     expect(parseWalletUrl(url)).toEqual({
       walletType,
@@ -99,6 +107,7 @@ describe('parseWalletUrl', () => {
     [`usb://trezor/${PUBKEY}?key=0/gaffer`, 'being a set of numbers delimited'],
     ['usb://trezor?key=-1', 'being a set of numbers delimited'],
     ['usb://ledger?key=2147483648', 'being a set of numbers delimited'],
+    ['usb://ledger?key=%zz', 'Malformed percent-encoding'],
   ])('rejects %s', (url, message) => {
     expect(() => parseWalletUrl(url)).toThrow(message)
   })

@@ -334,6 +334,19 @@ describe('TransportNodeHid', () => {
     expect(fakeNodeHid.device.writes).toHaveLength(0)
   })
 
+  it('refuses an exchange started while close is pending', async () => {
+    const transport = await TransportNodeHid.open('/dev/hidraw0')
+    const closing = transport.close()
+    const error = await rejection(
+      transport.exchange(Buffer.from('e001', 'hex')),
+    )
+    await closing
+    expect(error).toBeInstanceOf(DisconnectedDevice)
+    expect(error.message).toBe(DISCONNECTED)
+    expect(fakeNodeHid.device.writes).toHaveLength(0)
+    expect(fakeNodeHid.device.closeCount).toBe(1)
+  })
+
   it('traces APDUs to the logger', async () => {
     const logger = jest.fn()
     const transport = await TransportNodeHid.open('/dev/hidraw0', { logger })
