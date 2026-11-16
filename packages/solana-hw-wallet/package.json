@@ -36,7 +36,7 @@
     "test:emulator": "tsc --build && node --test dist/emulator/trezor.e2e.js",
     "test:emulator:ledger": "tsc --build && node --test dist/emulator/ledger.e2e.js",
     "test:uhid": "tsc --build && sudo env \"PATH=$PATH\" node --test --test-force-exit dist/emulator/ledger-uhid.e2e.js",
-    "typecheck:web3js-v3": "tsc -p tsconfig.web3js-v3.json"
+    "typecheck:web3js-v3": "tsc --build ../ledger-hid-transport && tsc -p tsconfig.web3js-v3.json"
   },
   "dependencies": {
     "@marinade.finance/web3js-kit": "^5.12.2",

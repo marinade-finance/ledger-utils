@@ -31,6 +31,7 @@ const SEED_OTHER = mnemonicToSeed(MNEMONIC_ALL, 'other passphrase')
 // trezor-suite connect-core e2e fixtures solanaGetPublicKey for the "all" mnemonic
 const ALL_BASE = new PublicKey('zZqNUDNijfbMXFy2wVCdJSm9MeMfxBMdxBqseSuiSW6')
 const ALL_0_0 = new PublicKey('14CCvQzQzHCVgZM3j9soPnXuJXh1RmCfwLVUcdfbZVBS')
+const OTHER_BASE = deriveKeypair(SEED_OTHER, [44, 501]).address
 const HARDENED_0_0 = [0x8000002c, 0x800001f5, 0x80000000, 0x80000000]
 
 let TrezorWallet: typeof TrezorModule.TrezorWallet
@@ -98,6 +99,39 @@ describe('TrezorWallet', () => {
     await expect(TrezorWallet.instance('usb://trezor')).rejects.toThrow(
       'Multiple trezor devices found, select one by wallet id',
     )
+  })
+
+  it('fails on multiple devices without wallet id when one is used by another application', async () => {
+    connectTrezors(SEED_ALL)
+    fakeTrezor.unacquired = 1
+    await expect(TrezorWallet.instance('usb://trezor')).rejects.toThrow(
+      `Multiple trezor devices found, select one by wallet id: usb://trezor/${ALL_BASE.toBase58()} (1 more device cannot be read)`,
+    )
+  })
+
+  it('counts a device released by another application once', async () => {
+    connectTrezors(SEED_ALL)
+    fakeTrezor.unacquired = 1
+    await TrezorWallet.instance(`usb://trezor/${ALL_BASE.toBase58()}`)
+    fakeTrezor.plugDevice('busy-0', SEED_OTHER)
+    await expect(TrezorWallet.instance('usb://trezor')).rejects.toThrow(
+      `Multiple trezor devices found, select one by wallet id: usb://trezor/${ALL_BASE.toBase58()}, usb://trezor/${OTHER_BASE}`,
+    )
+  })
+
+  it('tracks devices plugged and unplugged while connect is open', async () => {
+    connectTrezors(SEED_ALL)
+    await TrezorWallet.instance('usb://trezor')
+    fakeTrezor.plugDevice('trezor-1-1', SEED_OTHER)
+    await expect(TrezorWallet.instance('usb://trezor')).rejects.toThrow(
+      'Multiple trezor devices found, select one by wallet id',
+    )
+    fakeTrezor.unplugDevice('trezor-1-0')
+    const wallet = await TrezorWallet.instance('usb://trezor?key=0/0')
+    expect(wallet.address).toEqual(
+      deriveKeypair(SEED_OTHER, [44, 501, 0, 0]).address,
+    )
+    expect(fakeTrezor.initCount).toBe(1)
   })
 
   it('searches the derivation path when only the pubkey is provided', async () => {

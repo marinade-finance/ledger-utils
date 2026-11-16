@@ -9,6 +9,7 @@ type Call = { method: string; params: Record<string, unknown> }
 const DEVICE = {
   CONNECT: 'device-connect',
   CONNECT_UNACQUIRED: 'device-connect_unacquired',
+  DISCONNECT: 'device-disconnect',
   THP_CREDENTIALS_CHANGED: 'device-thp_credentials_changed',
 }
 const TRANSPORT = { START: 'transport-start', ERROR: 'transport-error' }
@@ -83,6 +84,16 @@ export class FakeTrezorConnect {
         this.emit(TRANSPORT.ERROR, { path: '', error: this.transportError })
       }
     }, 0)
+  }
+
+  plugDevice(path: string, seed: Buffer): void {
+    this.devices.push({ path, seed })
+    this.emit(DEVICE.CONNECT, { path })
+  }
+
+  unplugDevice(path: string): void {
+    this.devices = this.devices.filter(d => d.path !== path)
+    this.emit(DEVICE.DISCONNECT, { path })
   }
 
   async solanaGetPublicKey(params: {

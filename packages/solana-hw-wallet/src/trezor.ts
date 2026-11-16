@@ -59,7 +59,11 @@ const TRANSPORT_START_TIMEOUT_MS = 10_000
 // connect fails a second call to a device while one runs, kit signs partial signers concurrently
 const TREZOR_LOCK = 'solana-hw-wallet:trezor'
 
-type Session = { devices: TrezorDevice[] }
+const DEVICE_BUSY =
+  'Trezor device is used by another application. Close Trezor Suite or other wallet and try again.'
+
+// kept live by the device events, a session serves every wallet opened before the idle close
+type Session = { devices: TrezorDevice[]; unacquired: Set<DevicePath> }
 
 let session: Promise<Session> | null = null
 // a new session waits for the dispose, which drops the listeners of every session
@@ -108,6 +112,7 @@ export class TrezorWallet implements HardwareWallet {
         derivationPath: parsed.derivationPath,
         explicitKey: parsed.explicitKey,
         logger,
+        unopened: [...current.unacquired].map(() => new Error(DEVICE_BUSY)),
       })
       return new TrezorWallet(
         current,
@@ -374,13 +379,18 @@ async function openSession(
     })
     transportTimeout = setTimeout(resolve, TRANSPORT_START_TIMEOUT_MS)
   })
-  const paths: DevicePath[] = []
-  let unacquired = 0
+  const opened: Session = { devices: [], unacquired: new Set() }
   connect.on(DEVICE.CONNECT, device => {
-    paths.push(device.path)
+    // a device released by another application connects again under its unacquired path
+    opened.unacquired.delete(device.path)
+    opened.devices.push(new TrezorDevice(connect, device.path))
   })
-  connect.on(DEVICE.CONNECT_UNACQUIRED, () => {
-    unacquired++
+  connect.on(DEVICE.CONNECT_UNACQUIRED, device => {
+    opened.unacquired.add(device.path)
+  })
+  connect.on(DEVICE.DISCONNECT, device => {
+    opened.unacquired.delete(device.path)
+    opened.devices = opened.devices.filter(d => d.path !== device.path)
   })
   connect.on(DEVICE.THP_CREDENTIALS_CHANGED, event => {
     thpCredentials.push(event.credentials)
@@ -433,19 +443,17 @@ async function openSession(
     clearTimeout(transportTimeout)
   }
 
-  if (paths.length === 0 && unacquired > 0) {
+  if (opened.devices.length === 0 && opened.unacquired.size > 0) {
     connect.dispose()
-    throw new Error(
-      'Trezor device is used by another application. Close Trezor Suite or other wallet and try again.',
-    )
+    throw new Error(DEVICE_BUSY)
   }
-  if (paths.length === 0 && transportError !== undefined) {
+  if (opened.devices.length === 0 && transportError !== undefined) {
     connect.dispose()
     throw new Error(
       `Trezor transport failed to start: ${transportError}. On Linux check the Trezor udev rules.`,
     )
   }
-  return { devices: paths.map(path => new TrezorDevice(connect, path)) }
+  return opened
 }
 
 async function readPairingCode(): Promise<string | undefined> {

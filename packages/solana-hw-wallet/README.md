@@ -73,6 +73,7 @@ As a kit `MessagePartialSigner` Ledger signs off-chain messages v0 and v1, Trezo
 `usb://<ledger|trezor>[/<wallet-id>][?key=<account>[/<change>]]`
 
 Every derivation path index is hardened, `key=0/1` and `key=0'/1'` are both `m/44'/501'/0'/1'`.
+A leading `44'/501'` or `m/44'/501'` in `key` is dropped, so `key=44/501` is `44'/501'`; the Solana CLI reads it as account 44 and change 501.
 
 | url | device | derivation path |
 |---|---|---|
