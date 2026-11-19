@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-24.04
@@ -17,13 +20,92 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
-          version: 9
+          version: 11
 
       - run: pnpm install
       - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm --filter @marinade.finance/solana-hw-wallet typecheck:web3js-v3
       - run: pnpm test
+
+  trezor-emulator:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # tag 0126ecbed6edc132a4210803707a66fd04add700
+      - name: Start Trezor emulator environment
+        run: >-
+          docker run -d --name trezor-user-env --network host
+          -e SDL_VIDEODRIVER=dummy -e XDG_RUNTIME_DIR=/var/tmp
+          ghcr.io/trezor/trezor-user-env@sha256:984e507c7dd3be0532b6d59b3835995146bcdb142b2a451fe3432735e5fa64fd
+
+      - name: Install Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 11
+
+      - run: pnpm install
+
+      - name: Wait for trezor-user-env
+        run: timeout 300 bash -c 'until curl -sf http://127.0.0.1:9002 > /dev/null; do sleep 2; done'
+
+      - run: pnpm --filter @marinade.finance/solana-hw-wallet test:emulator
+
+      - name: Emulator logs
+        if: failure()
+        run: docker logs trezor-user-env
+
+  ledger-emulator:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 11
+
+      - name: Cache the Ledger Solana app
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: build/ledger-app
+          key: ledger-app-${{ hashFiles('packages/solana-hw-wallet/emulator/speculos.sh') }}
+
+      - name: Start Speculos with the Solana app
+        run: bash packages/solana-hw-wallet/emulator/speculos.sh
+
+      - run: pnpm install
+
+      - name: Wait for Speculos
+        run: timeout 120 bash -c 'until curl -sf http://127.0.0.1:5000/events > /dev/null; do sleep 1; done'
+
+      - run: pnpm --filter @marinade.finance/solana-hw-wallet test:emulator:ledger
+
+      - name: Load the uhid kernel module
+        run: sudo modprobe uhid || (sudo apt-get update && sudo apt-get install -y linux-modules-extra-$(uname -r) && sudo modprobe uhid)
+
+      - run: pnpm --filter @marinade.finance/solana-hw-wallet test:uhid
+
+      - name: Emulator logs
+        if: failure()
+        run: docker logs speculos
