@@ -2,7 +2,12 @@ import { address, getAddressEncoder } from '@solana/addresses'
 
 import { deriveKeypair, signEd25519 } from './slip10'
 
-type Payload = { path: string; requestId?: number; error?: string }
+type Payload = {
+  path?: string
+  requestId?: number
+  error?: string
+  view?: string
+}
 type Listener = (payload: Payload) => void
 type Call = { method: string; params: Record<string, unknown> }
 
@@ -48,7 +53,24 @@ export class FakeTrezorConnect {
     this.listeners.set(event, [...(this.listeners.get(event) ?? []), listener])
   }
 
-  uiResponse(): void {}
+  public readonly uiResponses: {
+    type: string
+    payload: unknown
+    requestId?: number
+  }[] = []
+
+  uiResponse(response: {
+    type: string
+    payload: unknown
+    requestId?: number
+  }): void {
+    this.uiResponses.push(response)
+  }
+
+  // as connect core asks the host before a call, e.g. view 'no-backup'
+  requestConfirmation(view: string, requestId: number): void {
+    this.emit(UI_REQUESTS.REQUEST_CONFIRMATION, { view, requestId })
+  }
 
   cancel(): void {}
 
@@ -195,6 +217,17 @@ function unharden(path: number[]): number[] {
 }
 
 export const fakeTrezor = new FakeTrezorConnect()
+
+// stand-in for @trezor/transport, Jest cannot require the ES module
+export class FakeNodeUsbTransport {
+  readonly name = 'NodeUsbTransport'
+  constructor(public readonly params: Record<string, unknown>) {}
+}
+
+export const fakeTrezorTransportModule = {
+  __esModule: true,
+  NodeUsbTransport: FakeNodeUsbTransport,
+}
 
 export const fakeTrezorModule = {
   __esModule: true,

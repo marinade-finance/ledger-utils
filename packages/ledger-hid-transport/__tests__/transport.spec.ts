@@ -152,10 +152,10 @@ describe('TransportNodeHid', () => {
     return result
   }
 
-  it('opens the device not exclusively', async () => {
+  it('opens the device with the exclusive default', async () => {
     await TransportNodeHid.open('/dev/hidraw0')
     expect(fakeNodeHid.opened).toEqual([
-      { path: '/dev/hidraw0', options: { nonExclusive: true } },
+      { path: '/dev/hidraw0', options: undefined },
     ])
   })
 

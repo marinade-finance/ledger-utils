@@ -15,7 +15,7 @@ pnpm add @marinade.finance/solana-hw-wallet
 # Ledger
 pnpm add @ledgerhq/hw-app-solana @marinade.finance/ledger-hid-transport
 # Trezor
-pnpm add @trezor/connect
+pnpm add @trezor/connect @trezor/transport
 # Anchor compatible Wallet (parseHardwareWallet, toWeb3Wallet)
 pnpm add @solana/web3.js
 ```
@@ -99,6 +99,11 @@ An explicit `key` is never replaced by the search.
 
 ## Trezor in a CLI
 
+The device is reached over USB only. Trezor Bridge and Trezor Suite listen on an unauthenticated local port (`127.0.0.1:21328`) where any local process could pose as the device,
+so they are used only with `TrezorWallet.instance(url, logger, { bridge: true })`. Close Trezor Suite while signing, it holds the device.
+On every connect `@trezor/connect` downloads the signed firmware release list from `data.trezor.io`. Nothing about the transaction is sent; without network it falls back to the bundled list.
+A seed without backup is signed with after a warning, any other confirmation `@trezor/connect` asks for is refused.
+
 `@trezor/connect` keeps the Node.js event loop busy. The library closes it after one second without a wallet call and opens it again on the next call, so the CLI exits on its own. `closeTrezorConnect()` closes it right away.
 Trezor Safe 7 pairs over THP. The pairing code is read from the terminal and the pairing lasts for the process lifetime.
 A passphrase is always entered on the device.
@@ -111,5 +116,5 @@ The `trezor-emulator` CI job signs with the Trezor firmware emulator ([trezor-us
 Locally start the emulator with docker and run `pnpm -C packages/solana-hw-wallet test:emulator`:
 
 ```sh
-docker run -d --rm --name trezor-user-env --network host -e SDL_VIDEODRIVER=dummy -e XDG_RUNTIME_DIR=/var/tmp ghcr.io/trezor/trezor-user-env:0126ecbed6edc132a4210803707a66fd04add700
+docker run -d --rm --name trezor-user-env --network host -e SDL_VIDEODRIVER=dummy -e XDG_RUNTIME_DIR=/var/tmp ghcr.io/trezor/trezor-user-env@sha256:984e507c7dd3be0532b6d59b3835995146bcdb142b2a451fe3432735e5fa64fd
 ```

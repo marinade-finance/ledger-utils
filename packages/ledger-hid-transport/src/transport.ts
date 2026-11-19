@@ -82,7 +82,8 @@ export default class TransportNodeHid extends Transport {
   ): Promise<TransportNodeHid> => {
     let device: HIDAsync
     try {
-      device = await HIDAsync.open(path, { nonExclusive: true })
+      // node-hid default, exclusive on macOS: no other process reads the frames, share one transport per path
+      device = await HIDAsync.open(path)
     } catch (e) {
       throw await cantOpenDevice(path, e)
     }

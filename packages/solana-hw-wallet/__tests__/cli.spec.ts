@@ -23,7 +23,10 @@ describe('parseHardwareWallet', () => {
       'usb://ledger',
       'Ledger support requires packages @ledgerhq/hw-app-solana',
     ],
-    [' usb://trezor?key=0', 'Trezor support requires package @trezor/connect'],
+    [
+      ' usb://trezor?key=0',
+      'Trezor support requires packages @trezor/connect and @trezor/transport',
+    ],
   ])('names the missing optional package for %s', async (url, message) => {
     await expect(parseHardwareWallet(url)).rejects.toThrow(message)
   })

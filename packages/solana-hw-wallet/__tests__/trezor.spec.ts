@@ -25,6 +25,12 @@ jest.mock(
     jest.requireActual<typeof FakeTrezorModule>('../test-utils/fake-trezor')
       .fakeTrezorModule,
 )
+jest.mock(
+  '@trezor/transport',
+  () =>
+    jest.requireActual<typeof FakeTrezorModule>('../test-utils/fake-trezor')
+      .fakeTrezorTransportModule,
+)
 
 const SEED_ALL = mnemonicToSeed(MNEMONIC_ALL)
 const SEED_OTHER = mnemonicToSeed(MNEMONIC_ALL, 'other passphrase')
@@ -61,6 +67,12 @@ describe('TrezorWallet', () => {
     expect(wallet.derivationPath).toEqual("44'/501'/0'/0'")
     expect(fakeTrezor.initSettings).toMatchObject({
       manifest: { appName: '@marinade.finance/solana-hw-wallet' },
+      transports: [
+        {
+          name: 'NodeUsbTransport',
+          params: { id: '@marinade.finance/solana-hw-wallet' },
+        },
+      ],
       pendingTransportEvent: true,
     })
     expect(fakeTrezor.calls.at(-1)).toEqual({
@@ -71,6 +83,23 @@ describe('TrezorWallet', () => {
         showOnTrezor: false,
       },
     })
+  })
+
+  it('leaves the transports to connect, bridge first, only when the bridge is enabled', async () => {
+    connectTrezors(SEED_ALL)
+    await TrezorWallet.instance('usb://trezor', undefined, { bridge: true })
+    expect(fakeTrezor.initSettings).toHaveProperty('transports', undefined)
+  })
+
+  it('approves a seed without backup and refuses any other confirmation', async () => {
+    connectTrezors(SEED_ALL)
+    await TrezorWallet.instance('usb://trezor')
+    fakeTrezor.requestConfirmation('no-backup', 1)
+    fakeTrezor.requestConfirmation('device-management', 2)
+    expect(fakeTrezor.uiResponses).toEqual([
+      { type: 'ui-receive_confirmation', payload: true, requestId: 1 },
+      { type: 'ui-receive_confirmation', payload: false, requestId: 2 },
+    ])
   })
 
   it('selects device by Agave wallet id', async () => {

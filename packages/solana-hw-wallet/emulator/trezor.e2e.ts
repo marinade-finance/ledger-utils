@@ -123,6 +123,11 @@ async function waitForBridgeDevice(): Promise<void> {
   throw new Error(`No emulator device found at bridge ${BRIDGE_URL}`)
 }
 
+// the emulator is reachable only through the trezor-user-env bridge
+function openWallet(url: string): Promise<TrezorWallet> {
+  return TrezorWallet.instance(url, undefined, { bridge: true })
+}
+
 // longer than IDLE_CLOSE_MS in src/trezor.ts, like the RPC calls of a CLI between open and sign
 async function waitPastIdleClose(): Promise<void> {
   await new Promise(resolve => {
@@ -192,7 +197,7 @@ void describe('TrezorWallet on firmware emulator', () => {
 
   void it('signs legacy and versioned transactions with the derived key', async () => {
     await withAutoConfirm(async () => {
-      const wallet = await toWeb3Wallet(await TrezorWallet.instance(URL_0_0))
+      const wallet = await toWeb3Wallet(await openWallet(URL_0_0))
       assert.deepEqual(wallet.publicKey, ALL_0_0)
 
       const legacy = transferTx(wallet.publicKey)
@@ -219,7 +224,7 @@ void describe('TrezorWallet on firmware emulator', () => {
 
   void it('selects the device by Agave wallet id', async () => {
     await withAutoConfirm(async () => {
-      const wallet = await TrezorWallet.instance(
+      const wallet = await openWallet(
         `usb://trezor/${ALL_BASE.toBase58()}?key=0/0`,
       )
       assert.equal(wallet.address, ALL_0_0.toBase58())
@@ -227,7 +232,7 @@ void describe('TrezorWallet on firmware emulator', () => {
   })
 
   void it('signs as kit fee payer after connect closed while idle', async () => {
-    const wallet = await TrezorWallet.instance(URL_0_0)
+    const wallet = await openWallet(URL_0_0)
     const message = kitFeePayerMessage(wallet)
     await waitPastIdleClose()
 
@@ -245,7 +250,7 @@ void describe('TrezorWallet on firmware emulator', () => {
   })
 
   void it('signs transactions one by one with idle gaps between them', async () => {
-    const wallet = await TrezorWallet.instance(URL_0_0)
+    const wallet = await openWallet(URL_0_0)
     const key = deriveKeypair(SEED_ALL, [44, 501, 0, 0])
     for (let i = 0; i < 3; i++) {
       await waitPastIdleClose()
@@ -261,7 +266,7 @@ void describe('TrezorWallet on firmware emulator', () => {
 
   void it('signs off-chain message v1', async () => {
     await withAutoConfirm(async () => {
-      const wallet = await TrezorWallet.instance(URL_0_0)
+      const wallet = await openWallet(URL_0_0)
       const signature = await wallet.signOffchainMessage('Hello, Trezor!')
       assert.equal(
         Buffer.from(signature).toString('hex'),

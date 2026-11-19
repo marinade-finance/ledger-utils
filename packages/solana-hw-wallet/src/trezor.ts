@@ -1,7 +1,7 @@
 import { hostname } from 'os'
 import { createInterface } from 'readline/promises'
 
-import { doWithLock, logInfo } from '@marinade.finance/ts-common'
+import { doWithLock, logInfo, logWarn } from '@marinade.finance/ts-common'
 import { formatOffchainMessageV1 } from '@marinade.finance/web3js-kit'
 import { address } from '@solana/addresses'
 import { signatureBytes } from '@solana/keys'
@@ -33,8 +33,12 @@ import type { SignatureBytes } from '@solana/keys'
 import type TrezorConnectInstance from '@trezor/connect'
 import type * as TrezorConnectModule from '@trezor/connect'
 import type { Device } from '@trezor/connect'
+import type * as TrezorTransportModule from '@trezor/transport'
 
 type TrezorConnect = typeof TrezorConnectInstance
+type ConnectTransports = NonNullable<
+  Parameters<TrezorConnect['init']>[0]
+>['transports']
 type DevicePath = Device['path']
 type ThpCredentials = NonNullable<Device['thp']>['credentials'][number]
 type TrezorResponse<T> =
@@ -53,12 +57,20 @@ export const DEFAULT_TREZOR_MANIFEST: TrezorManifest = {
   email: 'info@marinade.finance',
 }
 
+export type TrezorSettings = {
+  manifest?: TrezorManifest
+  // also reach the device through Trezor Bridge or Suite on 127.0.0.1:21328, an unauthenticated local http port
+  bridge?: boolean
+}
+
 // @trezor/connect keeps the event loop alive, closing it when idle lets the CLI exit on its own
 const IDLE_CLOSE_MS = 1000
 const TRANSPORT_START_TIMEOUT_MS = 10_000
 // connect fails a second call to a device while one runs, kit signs partial signers concurrently
 const TREZOR_LOCK = 'solana-hw-wallet:trezor'
 
+const TREZOR_PACKAGES_MISSING =
+  'Trezor support requires packages @trezor/connect and @trezor/transport to be installed'
 const DEVICE_BUSY =
   'Trezor device is used by another application. Close Trezor Suite or other wallet and try again.'
 
@@ -98,13 +110,13 @@ export class TrezorWallet implements HardwareWallet {
   static async instance(
     trezorUrl = 'usb://trezor',
     logger: LoggerPlaceholder | undefined = undefined,
-    manifest: TrezorManifest = DEFAULT_TREZOR_MANIFEST,
+    settings: TrezorSettings = {},
   ): Promise<TrezorWallet> {
     const parsed = parseWalletUrl(trezorUrl)
     if (parsed.walletType !== WalletType.TREZOR) {
       throw new Error(`Not a Trezor wallet url: ${trezorUrl}`)
     }
-    return withSession(manifest, logger, async current => {
+    return withSession(settings, logger, async current => {
       const { device, derivationPath } = await resolveDevice({
         walletType: WalletType.TREZOR,
         devices: current.devices,
@@ -119,7 +131,7 @@ export class TrezorWallet implements HardwareWallet {
         device,
         derivationPath,
         await device.getAddress(derivationPath),
-        manifest,
+        settings,
         logger,
       )
     })
@@ -133,7 +145,7 @@ export class TrezorWallet implements HardwareWallet {
     device: TrezorDevice,
     private readonly derivationIndexes: number[],
     public readonly address: Address,
-    private readonly manifest: TrezorManifest,
+    private readonly settings: TrezorSettings,
     public readonly logger: LoggerPlaceholder | undefined = undefined,
   ) {
     this.connection = { session, device }
@@ -256,7 +268,7 @@ export class TrezorWallet implements HardwareWallet {
   private async withDevice<R>(
     action: (device: TrezorDevice) => Promise<R>,
   ): Promise<R> {
-    return withSession(this.manifest, this.logger, async current => {
+    return withSession(this.settings, this.logger, async current => {
       if (current !== this.connection.session) {
         const { device } = await resolveDevice({
           walletType: WalletType.TREZOR,
@@ -295,7 +307,7 @@ async function disposeSession(current: Promise<Session>): Promise<void> {
 }
 
 async function withSession<R>(
-  manifest: TrezorManifest,
+  settings: TrezorSettings,
   logger: LoggerPlaceholder | undefined,
   action: (current: Session) => Promise<R>,
 ): Promise<R> {
@@ -303,7 +315,7 @@ async function withSession<R>(
   pendingCalls++
   try {
     if (session === null) {
-      const opening = closing.then(() => openSession(manifest, logger))
+      const opening = closing.then(() => openSession(settings, logger))
       session = opening
       opening.catch(() => {
         if (session === opening) {
@@ -343,15 +355,20 @@ async function loadTrezorConnect(): Promise<typeof TrezorConnectModule> {
   try {
     return await import('@trezor/connect')
   } catch (e) {
-    throw new Error(
-      'Trezor support requires package @trezor/connect to be installed',
-      { cause: e },
-    )
+    throw new Error(TREZOR_PACKAGES_MISSING, { cause: e })
+  }
+}
+
+async function loadTrezorTransport(): Promise<typeof TrezorTransportModule> {
+  try {
+    return await import('@trezor/transport')
+  } catch (e) {
+    throw new Error(TREZOR_PACKAGES_MISSING, { cause: e })
   }
 }
 
 async function openSession(
-  manifest: TrezorManifest,
+  { manifest = DEFAULT_TREZOR_MANIFEST, bridge = false }: TrezorSettings,
   logger: LoggerPlaceholder | undefined,
 ): Promise<Session> {
   const {
@@ -362,6 +379,16 @@ async function openSession(
     UI_REQUESTS,
     UI_RESPONSE,
   } = await loadTrezorConnect()
+
+  // connect tries the bridge first by default, a local process listening there would act as the device
+  let transports: ConnectTransports
+  if (!bridge) {
+    const { NodeUsbTransport } = await loadTrezorTransport()
+    // connect types a vendored copy of the transport class, at runtime it checks the methods only
+    transports = [
+      new NodeUsbTransport({ id: manifest.appName }),
+    ] as unknown as ConnectTransports
+  }
 
   // events are delivered after init resolves, initial devices connect before the transport start
   let transportTimeout: NodeJS.Timeout | undefined
@@ -395,10 +422,16 @@ async function openSession(
   connect.on(DEVICE.THP_CREDENTIALS_CHANGED, event => {
     thpCredentials.push(event.credentials)
   })
-  connect.on(UI_REQUESTS.REQUEST_CONFIRMATION, () => {
+  // signing asks for a confirmation only on a seed without backup, anything else is refused
+  connect.on(UI_REQUESTS.REQUEST_CONFIRMATION, event => {
+    const noBackup = event.view === 'no-backup'
+    if (noBackup) {
+      logWarn(logger, 'Trezor seed has no backup, create one in Trezor Suite')
+    }
     connect.uiResponse({
       type: UI_RESPONSE.RECEIVE_CONFIRMATION,
-      payload: true,
+      payload: noBackup,
+      requestId: event.requestId,
     })
   })
   connect.on(UI_REQUESTS.REQUEST_PASSPHRASE, event => {
@@ -427,6 +460,7 @@ async function openSession(
     // pendingTransportEvent: init waits for the connected devices to be handshaked
     await connect.init({
       manifest,
+      transports,
       pendingTransportEvent: true,
       thp: {
         appName: manifest.appName,

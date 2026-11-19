@@ -8,7 +8,7 @@ pnpm workspace. `packages/solana-hw-wallet` is the library (Ledger + Trezor sign
 - `pnpm fix` after every change, then `pnpm build` and `pnpm test`.
 - `pnpm check` also typechecks `src` against web3.js 3.x (`typecheck:web3js-v3`).
 - `pnpm -C packages/solana-hw-wallet test:emulator` runs the Trezor firmware emulator e2e. It needs a running `trezor-user-env` container, locally under docker:
-  `docker run -d --rm --name trezor-user-env --network host -e SDL_VIDEODRIVER=dummy -e XDG_RUNTIME_DIR=/var/tmp ghcr.io/trezor/trezor-user-env:0126ecbed6edc132a4210803707a66fd04add700`
+  `docker run -d --rm --name trezor-user-env --network host -e SDL_VIDEODRIVER=dummy -e XDG_RUNTIME_DIR=/var/tmp ghcr.io/trezor/trezor-user-env@sha256:984e507c7dd3be0532b6d59b3835995146bcdb142b2a451fe3432735e5fa64fd`
 - `pnpm -C packages/solana-hw-wallet test:emulator:ledger` runs the Ledger e2e against the Solana app on Speculos. `bash packages/solana-hw-wallet/emulator/speculos.sh` builds the app into `build/ledger-app` once and starts the `speculos` container.
 - `pnpm -C packages/solana-hw-wallet test:uhid` runs the real HID transport over a virtual `/dev/uhid` Ledger backed by Speculos. It needs sudo, the `uhid` kernel module, and no real Ledger plugged in. Run it from a terminal, sudo asks for a password.
 

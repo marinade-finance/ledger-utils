@@ -56,6 +56,12 @@ jest.mock(
     jest.requireActual<typeof FakeTrezorModule>('../test-utils/fake-trezor')
       .fakeTrezorModule,
 )
+jest.mock(
+  '@trezor/transport',
+  () =>
+    jest.requireActual<typeof FakeTrezorModule>('../test-utils/fake-trezor')
+      .fakeTrezorTransportModule,
+)
 
 const SEED_ALL = mnemonicToSeed(MNEMONIC_ALL)
 const ALL_0_0 = address('14CCvQzQzHCVgZM3j9soPnXuJXh1RmCfwLVUcdfbZVBS')

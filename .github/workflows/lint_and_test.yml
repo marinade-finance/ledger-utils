@@ -40,11 +40,12 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # tag 0126ecbed6edc132a4210803707a66fd04add700
       - name: Start Trezor emulator environment
         run: >-
           docker run -d --name trezor-user-env --network host
           -e SDL_VIDEODRIVER=dummy -e XDG_RUNTIME_DIR=/var/tmp
-          ghcr.io/trezor/trezor-user-env:0126ecbed6edc132a4210803707a66fd04add700
+          ghcr.io/trezor/trezor-user-env@sha256:984e507c7dd3be0532b6d59b3835995146bcdb142b2a451fe3432735e5fa64fd
 
       - name: Install Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0

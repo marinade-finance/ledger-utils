@@ -25,7 +25,7 @@ await transport.close()
 Ledger app libraries pin their own `@ledgerhq/hw-transport` version. The runtime class is the same, but when the pinned copy differs from the one this package resolves, TypeScript needs `new Solana(transport as unknown as ConstructorParameters<typeof Solana>[0])`.
 
 - `getDevices({ logger })` lists Ledger APDU interfaces by path. A product id unknown to `@ledgerhq/devices` is listed with `model` undefined and reported to the logger.
-- `TransportNodeHid.open(path, { logger })` opens the device non-exclusively. The logger also traces APDUs.
+- `TransportNodeHid.open(path, { logger })` opens the device, exclusively on macOS (node-hid default), so share one transport per path within a process. The logger also traces APDUs.
 - `exchange(apdu, { abortTimeoutMs })` waits for the user without a time limit unless `abortTimeoutMs` is set.
 - A failed write or read, a malformed response frame or an `abortTimeoutMs` timeout closes the transport and emits `disconnect` once. The HID protocol has no request id, so a late response must never answer the next request. Open the device again to continue.
 
