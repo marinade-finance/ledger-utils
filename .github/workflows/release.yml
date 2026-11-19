@@ -22,6 +22,9 @@ jobs:
     steps:
       - name: Checkout project
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.version || github.ref }}
+          persist-credentials: false
 
       - name: Install Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -54,6 +57,11 @@ jobs:
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           artifacts: '*.tgz'
+          artifactErrorsFailBuild: true
+          immutableCreate: true
+          allowUpdates: true
+          updateOnlyUnreleased: true
           generateReleaseNotes: true
+          prerelease: ${{ contains(steps.tag.outputs.tag, '-') }}
           tag: ${{ steps.tag.outputs.tag }}
           token: ${{ secrets.GITHUB_TOKEN }}
