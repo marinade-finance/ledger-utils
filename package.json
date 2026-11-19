@@ -11,7 +11,8 @@
     "check": "pnpm lint && pnpm format:check && pnpm -C packages/solana-hw-wallet typecheck:web3js-v3",
     "fix": "pnpm lint:fix && pnpm format",
     "prepare": "husky",
-    "publish:all": "pnpm clean && pnpm build && pnpm test && pnpm publish -r"
+    "publish:all": "pnpm clean && pnpm build && pnpm test && pnpm publish -r && pnpm run tag:release",
+    "tag:release": "VERSION=$(node -p \"require('./packages/solana-hw-wallet/package.json').version\") && if git tag -a \"v$VERSION\" -m \"Release v$VERSION\" 2>/dev/null; then echo \"Tag v$VERSION created locally. Push it with: git push <remote> v$VERSION (it triggers the GitHub Release workflow)\"; else echo \"Tag v$VERSION already exists (or could not be created). If it points to the right commit, push with: git push <remote> v$VERSION\"; fi"
   },
   "devDependencies": {
     "@marinade.finance/eslint-config": "1.4.1",
